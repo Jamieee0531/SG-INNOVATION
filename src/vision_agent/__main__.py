@@ -17,17 +17,10 @@ from pathlib import Path
 
 from src.vision_agent.config import VLMProvider, get_settings
 from src.vision_agent.graph import build_graph
+from src.vision_agent.llm.base import VLMError
 from src.vision_agent.llm.mock import MockVLM
 from src.vision_agent.llm.sealion import SeaLionVLM
-from src.vision_agent.llm.base import VLMError
-
-
-def _setup_logging(level: str) -> None:
-    logging.basicConfig(
-        level=getattr(logging, level),
-        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-        datefmt="%H:%M:%S",
-    )
+from src.vision_agent.logging_config import configure_logging
 
 
 def _build_vlm(provider: VLMProvider):
@@ -112,7 +105,7 @@ def main() -> int:
     args = parser.parse_args()
 
     settings = get_settings()
-    _setup_logging(settings.log_level)
+    configure_logging(settings.log_level)
 
     # CLI --provider flag overrides env setting
     provider = VLMProvider(args.provider) if args.provider else settings.vlm_provider
@@ -123,7 +116,11 @@ def main() -> int:
         print(f"Error: {e}", file=sys.stderr)
         return 1
 
-    graph = build_graph(vlm=vlm)
+    graph = build_graph(
+        vlm=vlm,
+        max_retries=settings.vlm_max_retries,
+        retry_delay_s=settings.vlm_retry_delay_s,
+    )
 
     initial_state = {
         "image_path": str(Path(args.image_path).resolve()),

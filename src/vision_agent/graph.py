@@ -10,6 +10,7 @@ from langgraph.graph import END, START, StateGraph
 
 from src.vision_agent.llm.base import BaseVLM
 from src.vision_agent.llm.mock import MockVLM
+from src.vision_agent.llm.retry import RetryVLM
 from src.vision_agent.nodes.food_analyzer import make_food_analyzer
 from src.vision_agent.nodes.image_intake import image_intake
 from src.vision_agent.nodes.medication_reader import make_medication_reader
@@ -34,17 +35,27 @@ def _route_by_scene(state: VisionAgentState) -> str:
     return routes.get(scene, "rejection_handler")
 
 
-def build_graph(vlm: BaseVLM | None = None) -> StateGraph:
+def build_graph(
+    vlm: BaseVLM | None = None,
+    max_retries: int = 3,
+    retry_delay_s: float = 1.0,
+) -> StateGraph:
     """Build and compile the Vision Agent LangGraph.
 
     Args:
         vlm: VLM implementation to use. Defaults to MockVLM for development.
+        max_retries: Number of retry attempts on VLM failure (wraps vlm in RetryVLM).
+        retry_delay_s: Initial delay between retries in seconds.
 
     Returns:
         Compiled LangGraph ready to invoke.
     """
     if vlm is None:
         vlm = MockVLM()
+
+    # Wrap with retry logic (skip for MockVLM - it never fails)
+    if not isinstance(vlm, MockVLM):
+        vlm = RetryVLM(vlm, max_retries=max_retries, delay_s=retry_delay_s)
 
     # Bind VLM to factory-created nodes
     scene_classifier = make_scene_classifier(vlm)
