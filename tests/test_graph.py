@@ -1,4 +1,7 @@
-"""Integration tests for the full LangGraph Vision Agent."""
+"""Integration tests for the full LangGraph Vision Agent.
+
+Uses shared fixtures from conftest.py.
+"""
 
 import os
 import tempfile
@@ -17,97 +20,118 @@ def _make_test_image() -> str:
         return f.name
 
 
-def _base_state(image_path: str) -> dict:
-    return {
-        "image_path": image_path,
-        "image_base64": "",
-        "scene_type": "",
-        "confidence": 0.0,
-        "raw_response": "",
-        "structured_output": {},
-        "error": None,
-    }
-
-
 class TestGraphFoodPath:
-    def test_food_image_returns_structured_output(self):
-        path = _make_test_image()
-        try:
-            graph = build_graph(vlm=MockVLM(forced_scene="FOOD"))
-            result = graph.invoke(_base_state(path))
-            assert result["error"] is None
-            assert result["scene_type"] == "FOOD"
-            output = result["structured_output"]
-            assert output["scene_type"] == "FOOD"
-            assert "items" in output
-            assert output["total_calories_kcal"] > 0
-        finally:
-            os.unlink(path)
+    def test_food_image_returns_structured_output(self, food_graph, base_state):
+        result = food_graph.invoke(base_state)
+        assert result["error"] is None
+        assert result["scene_type"] == "FOOD"
+        output = result["structured_output"]
+        assert output["scene_type"] == "FOOD"
+        assert "items" in output
+        assert output["total_calories_kcal"] > 0
+
+    def test_food_output_has_confidence(self, food_graph, base_state):
+        result = food_graph.invoke(base_state)
+        assert 0.0 < result["structured_output"]["confidence"] <= 1.0
 
 
 class TestGraphMedicationPath:
-    def test_medication_image_returns_structured_output(self):
-        path = _make_test_image()
-        try:
-            graph = build_graph(vlm=MockVLM(forced_scene="MEDICATION"))
-            result = graph.invoke(_base_state(path))
-            assert result["error"] is None
-            assert result["scene_type"] == "MEDICATION"
-            output = result["structured_output"]
-            assert "drug_name" in output
-            assert "dosage" in output
-        finally:
-            os.unlink(path)
+    def test_medication_image_returns_structured_output(self, medication_graph, base_state):
+        result = medication_graph.invoke(base_state)
+        assert result["error"] is None
+        assert result["scene_type"] == "MEDICATION"
+        output = result["structured_output"]
+        assert "drug_name" in output
+        assert "dosage" in output
+
+    def test_medication_has_frequency(self, medication_graph, base_state):
+        result = medication_graph.invoke(base_state)
+        assert "frequency" in result["structured_output"]
 
 
 class TestGraphReportPath:
-    def test_report_image_returns_structured_output(self):
-        path = _make_test_image()
-        try:
-            graph = build_graph(vlm=MockVLM(forced_scene="REPORT"))
-            result = graph.invoke(_base_state(path))
-            assert result["error"] is None
-            assert result["scene_type"] == "REPORT"
-            output = result["structured_output"]
-            assert "indicators" in output
-            assert len(output["indicators"]) > 0
-        finally:
-            os.unlink(path)
+    def test_report_image_returns_structured_output(self, report_graph, base_state):
+        result = report_graph.invoke(base_state)
+        assert result["error"] is None
+        assert result["scene_type"] == "REPORT"
+        output = result["structured_output"]
+        assert "indicators" in output
+        assert len(output["indicators"]) > 0
+
+    def test_report_indicators_have_required_fields(self, report_graph, base_state):
+        result = report_graph.invoke(base_state)
+        for ind in result["structured_output"]["indicators"]:
+            assert "name" in ind
+            assert "value" in ind
+            assert "is_abnormal" in ind
 
 
 class TestGraphUnknownPath:
-    def test_unknown_image_returns_rejection(self):
-        path = _make_test_image()
-        try:
-            graph = build_graph(vlm=MockVLM(forced_scene="UNKNOWN"))
-            result = graph.invoke(_base_state(path))
-            assert result["scene_type"] == "UNKNOWN"
-            output = result["structured_output"]
-            assert output["scene_type"] == "UNKNOWN"
-            assert "reason" in output
-        finally:
-            os.unlink(path)
+    def test_unknown_image_returns_rejection(self, unknown_graph, base_state):
+        result = unknown_graph.invoke(base_state)
+        assert result["scene_type"] == "UNKNOWN"
+        output = result["structured_output"]
+        assert output["scene_type"] == "UNKNOWN"
+        assert "reason" in output
+
+    def test_unknown_reason_is_non_empty(self, unknown_graph, base_state):
+        result = unknown_graph.invoke(base_state)
+        assert len(result["structured_output"]["reason"]) > 10
 
 
 class TestGraphErrorHandling:
     def test_missing_image_path_propagates_error(self):
         graph = build_graph(vlm=MockVLM())
-        state = _base_state("")
+        state = {
+            "image_path": "",
+            "image_base64": "",
+            "scene_type": "",
+            "confidence": 0.0,
+            "raw_response": "",
+            "structured_output": {},
+            "error": None,
+        }
         result = graph.invoke(state)
         assert result["structured_output"]["scene_type"] == "ERROR"
         assert result["structured_output"]["error"] is not None
 
     def test_nonexistent_file_propagates_error(self):
         graph = build_graph(vlm=MockVLM())
-        state = _base_state("/tmp/no_such_file_xyz.jpg")
+        state = {
+            "image_path": "/tmp/no_such_file_xyz.jpg",
+            "image_base64": "",
+            "scene_type": "",
+            "confidence": 0.0,
+            "raw_response": "",
+            "structured_output": {},
+            "error": None,
+        }
         result = graph.invoke(state)
         assert result["structured_output"]["scene_type"] == "ERROR"
 
-    def test_default_vlm_is_mock(self):
-        path = _make_test_image()
-        try:
-            graph = build_graph()  # No VLM passed → defaults to MockVLM
-            result = graph.invoke(_base_state(path))
-            assert "scene_type" in result
-        finally:
-            os.unlink(path)
+    def test_default_vlm_is_mock(self, mock_image_path):
+        graph = build_graph()  # No VLM passed → defaults to MockVLM
+        state = {
+            "image_path": mock_image_path,
+            "image_base64": "",
+            "scene_type": "",
+            "confidence": 0.0,
+            "raw_response": "",
+            "structured_output": {},
+            "error": None,
+        }
+        result = graph.invoke(state)
+        assert "scene_type" in result
+
+    def test_png_image_works(self, unknown_graph, mock_png_path):
+        state = {
+            "image_path": mock_png_path,
+            "image_base64": "",
+            "scene_type": "",
+            "confidence": 0.0,
+            "raw_response": "",
+            "structured_output": {},
+            "error": None,
+        }
+        result = unknown_graph.invoke(state)
+        assert result["error"] is None
