@@ -1,0 +1,37 @@
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Environment variables
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test images (keep structure, ignore large files)
+test_images/*.jpg
+test_images/*.png
+test_images/*.jpeg
+!test_images/.gitkeep
+
+# Sensitive data
+*.key
+*.pem
+credentials.json
