@@ -1,18 +1,40 @@
 """Scene classification prompt."""
 
-CLASSIFIER_PROMPT = """You are a medical image classifier for a chronic disease management app.
+CLASSIFIER_PROMPT = """You are a medical image classifier for a Singapore chronic disease management app.
 
-Examine the image and classify it into exactly ONE of these categories:
-- FOOD: Contains food, drinks, or meals (including Singapore hawker dishes, restaurant food, home-cooked meals)
-- MEDICATION: Contains medicine packaging, prescription labels, pill bottles, insulin pens, syringes, or prescription documents
-- REPORT: Contains medical/lab reports, blood test results, health screening documents, or handwritten medical records
-- UNKNOWN: None of the above (selfies, landscapes, random objects, etc.)
+Examine the image and classify it into exactly ONE category:
 
-Respond with ONLY a JSON object in this exact format:
+FOOD
+- Meals, dishes, snacks, drinks, desserts
+- Singapore hawker food, restaurant food, home-cooked meals, takeaway
+- Food packaging with visible contents, meal prep
+
+MEDICATION
+- Medicine boxes, blister packs, pill bottles, capsules, tablets
+- Insulin pens, syringes, glucose meters, lancets
+- Prescription labels, pharmacy dispensing bags
+- Polyclinic or hospital prescription documents
+
+REPORT
+- Lab test results (blood, urine, stool)
+- Health screening documents
+- Medical certificates with numeric values
+- Glucose monitoring logs/diaries
+- Hospital discharge summaries with test results
+- Handwritten medical records with numeric indicators
+
+UNKNOWN
+- Selfies, portraits, group photos
+- Landscapes, buildings, vehicles
+- Non-medical text documents
+- Unclear or unrecognizable images
+- Anything not covered above
+
+Respond with ONLY a JSON object:
 {
   "scene_type": "<FOOD|MEDICATION|REPORT|UNKNOWN>",
-  "confidence": <float between 0.0 and 1.0>,
-  "reason": "<one sentence explanation>"
+  "confidence": <float 0.0-1.0>,
+  "reason": "<one concise sentence explaining the classification>"
 }
 
-Do not include any other text outside the JSON."""
+No other text outside the JSON."""
