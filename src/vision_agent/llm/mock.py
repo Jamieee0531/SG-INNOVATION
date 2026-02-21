@@ -1,17 +1,21 @@
 """Mock VLM implementation for development and testing.
 
 Returns pre-baked JSON responses without making real API calls.
-Controlled via scene_type to simulate each path through the graph.
+Supports multiple scenarios per scene to enable diverse testing.
 """
 
 import json
+import random
 from typing import Optional
 
 from src.vision_agent.llm.base import BaseVLM
 
 
-_MOCK_RESPONSES: dict[str, str] = {
-    "FOOD": json.dumps({
+# ─── FOOD scenarios ───────────────────────────────────────────────────────────
+
+_FOOD_SCENARIOS = [
+    # Scenario 0: Hainanese Chicken Rice (default)
+    {
         "scene_type": "FOOD",
         "items": [
             {
@@ -22,16 +26,20 @@ _MOCK_RESPONSES: dict[str, str] = {
                     "carbs_g": 65.0,
                     "protein_g": 28.0,
                     "fat_g": 12.0,
+                    "fiber_g": 1.2,
+                    "sodium_mg": 820.0,
                 },
             },
             {
-                "name": "Soup (clear)",
+                "name": "Clear Soup",
                 "quantity": "1 bowl",
                 "nutrition": {
                     "calories_kcal": 20.0,
                     "carbs_g": 2.0,
                     "protein_g": 1.0,
                     "fat_g": 0.5,
+                    "fiber_g": None,
+                    "sodium_mg": 380.0,
                 },
             },
         ],
@@ -39,65 +47,273 @@ _MOCK_RESPONSES: dict[str, str] = {
         "meal_type": "lunch",
         "notes": "Estimated portion sizes. Common Singapore hawker meal.",
         "confidence": 0.91,
-    }),
-    "MEDICATION": json.dumps({
+    },
+    # Scenario 1: Nasi Lemak (breakfast)
+    {
+        "scene_type": "FOOD",
+        "items": [
+            {
+                "name": "Nasi Lemak",
+                "quantity": "1 set",
+                "nutrition": {
+                    "calories_kcal": 389.0,
+                    "carbs_g": 48.0,
+                    "protein_g": 12.0,
+                    "fat_g": 17.0,
+                    "fiber_g": 2.5,
+                    "sodium_mg": 650.0,
+                },
+            },
+            {
+                "name": "Teh Tarik",
+                "quantity": "1 cup (250ml)",
+                "nutrition": {
+                    "calories_kcal": 120.0,
+                    "carbs_g": 18.0,
+                    "protein_g": 3.5,
+                    "fat_g": 4.0,
+                    "fiber_g": None,
+                    "sodium_mg": 55.0,
+                },
+            },
+        ],
+        "total_calories_kcal": 509.0,
+        "meal_type": "breakfast",
+        "notes": "Includes sambal, ikan bilis, and half-boiled egg.",
+        "confidence": 0.88,
+    },
+    # Scenario 2: Char Kway Teow (supper)
+    {
+        "scene_type": "FOOD",
+        "items": [
+            {
+                "name": "Char Kway Teow",
+                "quantity": "1 plate",
+                "nutrition": {
+                    "calories_kcal": 742.0,
+                    "carbs_g": 95.0,
+                    "protein_g": 22.0,
+                    "fat_g": 30.0,
+                    "fiber_g": 2.0,
+                    "sodium_mg": 1580.0,
+                },
+            },
+        ],
+        "total_calories_kcal": 742.0,
+        "meal_type": "supper",
+        "notes": "High in sodium. Wok hei characteristic of good CKT.",
+        "confidence": 0.85,
+    },
+    # Scenario 3: Kaya Toast breakfast set
+    {
+        "scene_type": "FOOD",
+        "items": [
+            {
+                "name": "Kaya Toast",
+                "quantity": "2 slices",
+                "nutrition": {
+                    "calories_kcal": 190.0,
+                    "carbs_g": 26.0,
+                    "protein_g": 4.0,
+                    "fat_g": 8.0,
+                    "fiber_g": 1.0,
+                    "sodium_mg": 210.0,
+                },
+            },
+            {
+                "name": "Half-Boiled Eggs",
+                "quantity": "2 eggs",
+                "nutrition": {
+                    "calories_kcal": 140.0,
+                    "carbs_g": 1.0,
+                    "protein_g": 12.0,
+                    "fat_g": 10.0,
+                    "fiber_g": None,
+                    "sodium_mg": 140.0,
+                },
+            },
+            {
+                "name": "Kopi-O",
+                "quantity": "1 cup (250ml)",
+                "nutrition": {
+                    "calories_kcal": 45.0,
+                    "carbs_g": 10.0,
+                    "protein_g": 0.5,
+                    "fat_g": 0.0,
+                    "fiber_g": None,
+                    "sodium_mg": 10.0,
+                },
+            },
+        ],
+        "total_calories_kcal": 375.0,
+        "meal_type": "breakfast",
+        "notes": "Classic kopitiam breakfast set.",
+        "confidence": 0.93,
+    },
+]
+
+# ─── MEDICATION scenarios ─────────────────────────────────────────────────────
+
+_MEDICATION_SCENARIOS = [
+    # Scenario 0: Metformin (default)
+    {
         "scene_type": "MEDICATION",
         "drug_name": "Metformin Hydrochloride",
         "dosage": "500mg",
-        "frequency": "twice daily with meals",
+        "frequency": "twice daily with meals (BD)",
         "route": "oral",
-        "warnings": ["Do not crush or chew", "Take with food"],
+        "warnings": ["Do not crush or chew", "Take with food to reduce GI side effects"],
         "expiry_date": "2025-12",
         "confidence": 0.87,
-    }),
-    "REPORT": json.dumps({
+    },
+    # Scenario 1: Insulin pen
+    {
+        "scene_type": "MEDICATION",
+        "drug_name": "Insulin Glargine (Lantus)",
+        "dosage": "100 units/ml",
+        "frequency": "once daily at bedtime (ON)",
+        "route": "injection",
+        "warnings": [
+            "Keep refrigerated (2-8°C) before first use",
+            "Do not shake",
+            "Discard 28 days after first use",
+        ],
+        "expiry_date": "2025-06",
+        "confidence": 0.92,
+    },
+    # Scenario 2: Amlodipine (hypertension)
+    {
+        "scene_type": "MEDICATION",
+        "drug_name": "Amlodipine Besylate (Norvasc)",
+        "dosage": "5mg",
+        "frequency": "once daily (OD)",
+        "route": "oral",
+        "warnings": ["May cause ankle swelling", "Do not stop without consulting doctor"],
+        "expiry_date": "2026-03",
+        "confidence": 0.84,
+    },
+    # Scenario 3: Rosuvastatin
+    {
+        "scene_type": "MEDICATION",
+        "drug_name": "Rosuvastatin Calcium (Crestor)",
+        "dosage": "10mg",
+        "frequency": "once daily at night (ON)",
+        "route": "oral",
+        "warnings": ["Report muscle pain or weakness immediately", "Avoid grapefruit juice"],
+        "expiry_date": None,
+        "confidence": 0.89,
+    },
+]
+
+# ─── REPORT scenarios ─────────────────────────────────────────────────────────
+
+_REPORT_SCENARIOS = [
+    # Scenario 0: SGH blood test (default)
+    {
         "scene_type": "REPORT",
         "report_type": "blood_test",
         "indicators": [
-            {
-                "name": "HbA1c",
-                "value": "7.2",
-                "unit": "%",
-                "reference_range": "4.0-5.6",
-                "is_abnormal": True,
-            },
-            {
-                "name": "Fasting Glucose",
-                "value": "6.8",
-                "unit": "mmol/L",
-                "reference_range": "3.9-6.1",
-                "is_abnormal": True,
-            },
-            {
-                "name": "Total Cholesterol",
-                "value": "4.5",
-                "unit": "mmol/L",
-                "reference_range": "< 5.2",
-                "is_abnormal": False,
-            },
+            {"name": "HbA1c", "value": "7.2", "unit": "%",
+             "reference_range": "4.0-5.6", "is_abnormal": True},
+            {"name": "Fasting Glucose", "value": "6.8", "unit": "mmol/L",
+             "reference_range": "3.9-6.1", "is_abnormal": True},
+            {"name": "Total Cholesterol", "value": "4.5", "unit": "mmol/L",
+             "reference_range": "< 5.2", "is_abnormal": False},
+            {"name": "LDL Cholesterol", "value": "2.8", "unit": "mmol/L",
+             "reference_range": "< 2.6", "is_abnormal": True},
+            {"name": "HDL Cholesterol", "value": "1.2", "unit": "mmol/L",
+             "reference_range": "> 1.0", "is_abnormal": False},
         ],
         "report_date": "2024-01-15",
         "lab_name": "Singapore General Hospital",
         "confidence": 0.95,
-    }),
-    "UNKNOWN": json.dumps({
+    },
+    # Scenario 1: Health screening (polyclinic)
+    {
+        "scene_type": "REPORT",
+        "report_type": "health_screening",
+        "indicators": [
+            {"name": "BMI", "value": "26.4", "unit": "kg/m²",
+             "reference_range": "18.5-22.9", "is_abnormal": True},
+            {"name": "Blood Pressure", "value": "138/88", "unit": "mmHg",
+             "reference_range": "< 130/80", "is_abnormal": True},
+            {"name": "Random Blood Glucose", "value": "6.2", "unit": "mmol/L",
+             "reference_range": "< 7.8", "is_abnormal": False},
+            {"name": "Total Cholesterol", "value": "5.8", "unit": "mmol/L",
+             "reference_range": "< 5.2", "is_abnormal": True},
+        ],
+        "report_date": "2024-03-20",
+        "lab_name": "Bukit Batok Polyclinic",
+        "confidence": 0.91,
+    },
+    # Scenario 2: Renal panel
+    {
+        "scene_type": "REPORT",
+        "report_type": "renal_panel",
+        "indicators": [
+            {"name": "Creatinine", "value": "112", "unit": "μmol/L",
+             "reference_range": "62-106", "is_abnormal": True},
+            {"name": "eGFR", "value": "58", "unit": "mL/min/1.73m²",
+             "reference_range": ">= 60", "is_abnormal": True},
+            {"name": "Urea", "value": "7.2", "unit": "mmol/L",
+             "reference_range": "2.5-7.8", "is_abnormal": False},
+            {"name": "Potassium", "value": "4.1", "unit": "mmol/L",
+             "reference_range": "3.5-5.1", "is_abnormal": False},
+            {"name": "Sodium", "value": "139", "unit": "mmol/L",
+             "reference_range": "136-145", "is_abnormal": False},
+        ],
+        "report_date": "2024-02-08",
+        "lab_name": "National University Hospital",
+        "confidence": 0.93,
+    },
+]
+
+# ─── UNKNOWN scenarios ────────────────────────────────────────────────────────
+
+_UNKNOWN_SCENARIOS = [
+    {
         "scene_type": "UNKNOWN",
         "reason": "Image does not contain identifiable food, medication, or medical report.",
         "confidence": 0.82,
-    }),
+    },
+    {
+        "scene_type": "UNKNOWN",
+        "reason": "Image appears to be a selfie or portrait. Please upload a food, medication, or medical report image.",
+        "confidence": 0.90,
+    },
+    {
+        "scene_type": "UNKNOWN",
+        "reason": "Image quality is too low to identify content. Please take a clearer photo.",
+        "confidence": 0.65,
+    },
+]
+
+_ALL_SCENARIOS = {
+    "FOOD": _FOOD_SCENARIOS,
+    "MEDICATION": _MEDICATION_SCENARIOS,
+    "REPORT": _REPORT_SCENARIOS,
+    "UNKNOWN": _UNKNOWN_SCENARIOS,
 }
 
 
 class MockVLM(BaseVLM):
     """Deterministic mock VLM for dev/testing. No API calls made."""
 
-    def __init__(self, forced_scene: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        forced_scene: Optional[str] = None,
+        scenario_index: int = 0,
+        random_scenario: bool = False,
+    ) -> None:
         """
         Args:
-            forced_scene: If set, always return this scene's mock response.
-                          If None, MockVLM tries to infer from prompt keywords.
+            forced_scene: Always return this scene. If None, infer from prompt.
+            scenario_index: Which scenario variant to return (0=default).
+            random_scenario: If True, pick a random scenario each call.
         """
         self._forced_scene = forced_scene
+        self._scenario_index = scenario_index
+        self._random_scenario = random_scenario
 
     @property
     def model_name(self) -> str:
@@ -105,7 +321,16 @@ class MockVLM(BaseVLM):
 
     def call(self, prompt: str, image_base64: str) -> str:  # noqa: ARG002
         scene = self._forced_scene or self._infer_scene(prompt)
-        return _MOCK_RESPONSES.get(scene, _MOCK_RESPONSES["UNKNOWN"])
+        return self._get_response(scene)
+
+    def _get_response(self, scene: str) -> str:
+        scenarios = _ALL_SCENARIOS.get(scene, _ALL_SCENARIOS["UNKNOWN"])
+        if self._random_scenario:
+            data = random.choice(scenarios)
+        else:
+            idx = min(self._scenario_index, len(scenarios) - 1)
+            data = scenarios[idx]
+        return json.dumps(data)
 
     def _infer_scene(self, prompt: str) -> str:
         prompt_lower = prompt.lower()
@@ -116,3 +341,18 @@ class MockVLM(BaseVLM):
         if "report" in prompt_lower or "lab" in prompt_lower or "blood" in prompt_lower:
             return "REPORT"
         return "UNKNOWN"
+
+    @classmethod
+    def food_scenarios(cls) -> list[str]:
+        """Return all food scenario names for parametrized testing."""
+        return [s["items"][0]["name"] for s in _FOOD_SCENARIOS]
+
+    @classmethod
+    def medication_scenarios(cls) -> list[str]:
+        """Return all medication scenario names for parametrized testing."""
+        return [s["drug_name"] for s in _MEDICATION_SCENARIOS]
+
+    @classmethod
+    def scenario_count(cls, scene: str) -> int:
+        """Return number of available scenarios for a scene."""
+        return len(_ALL_SCENARIOS.get(scene, []))
