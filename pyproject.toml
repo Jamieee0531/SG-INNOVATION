@@ -14,6 +14,8 @@ addopts = [
 source = ["src"]
 omit = [
     "src/vision_agent/llm/sealion.py",   # skip until real API is connected
+    "src/vision_agent/__main__.py",       # CLI entry point, tested via subprocess
+    "src/vision_agent/logging_config.py", # logging setup, tested implicitly
     "*/__init__.py",
 ]
 
