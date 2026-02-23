@@ -45,7 +45,7 @@ class MedicationOutput(BaseModel):
     scene_type: SceneType = SceneType.MEDICATION
     drug_name: str
     dosage: str
-    frequency: str
+    frequency: Optional[str] = None    # may be absent on supplement labels
     route: Optional[str] = None        # oral / injection / topical
     warnings: Optional[List[str]] = None
     expiry_date: Optional[str] = None
