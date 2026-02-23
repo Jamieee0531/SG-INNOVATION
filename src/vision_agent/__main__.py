@@ -17,24 +17,46 @@ from pathlib import Path
 
 from src.vision_agent.config import VLMProvider, get_settings
 from src.vision_agent.graph import build_graph
-from src.vision_agent.llm.base import VLMError
+from src.vision_agent.llm.base import BaseVLM, VLMError
+from src.vision_agent.llm.gemini import GeminiVLM
 from src.vision_agent.llm.mock import MockVLM
 from src.vision_agent.llm.sealion import SeaLionVLM
 from src.vision_agent.logging_config import configure_logging
 
 
-def _build_vlm(provider: VLMProvider):
+def _build_vlm(provider: VLMProvider) -> BaseVLM:
+    """Build the vision VLM based on provider setting."""
+    if provider == VLMProvider.GEMINI:
+        return GeminiVLM()
     if provider == VLMProvider.SEALION:
         return SeaLionVLM()
     return MockVLM()
 
 
+def _build_text_llm() -> BaseVLM | None:
+    """Build SeaLION text LLM if API key is available."""
+    settings = get_settings()
+    if settings.sealion_api_key:
+        try:
+            return SeaLionVLM()
+        except VLMError:
+            return None
+    return None
+
+
 def _print_result(result: dict, as_json: bool) -> None:
     output = result.get("structured_output", {})
+    advice = result.get("advice", "")
     scene = output.get("scene_type", "UNKNOWN")
 
     if as_json:
-        print(json.dumps(output, indent=2, ensure_ascii=False))
+        combined = {"recognition": output}
+        if advice:
+            try:
+                combined["advice"] = json.loads(advice)
+            except (json.JSONDecodeError, TypeError):
+                combined["advice"] = advice
+        print(json.dumps(combined, indent=2, ensure_ascii=False))
         return
 
     # ── Human-readable output ──────────────────────────────────────────────
@@ -82,6 +104,32 @@ def _print_result(result: dict, as_json: bool) -> None:
     elif scene == "ERROR":
         print(f"  Error: {output.get('error', 'Unknown error')}")
 
+    # Display health advice if available
+    if advice and scene not in ("UNKNOWN", "ERROR"):
+        print(f"{'─'*50}")
+        print("  Health Advice (SeaLION):")
+        try:
+            advice_data = json.loads(advice)
+            if "advice_summary" in advice_data:
+                print(f"  {advice_data['advice_summary']}")
+            if "suggestions" in advice_data:
+                for s in advice_data["suggestions"]:
+                    print(f"    - {s}")
+            if "encouragement" in advice_data:
+                print(f"\n  {advice_data['encouragement']}")
+            if "medication_purpose" in advice_data:
+                print(f"  Purpose: {advice_data['medication_purpose']}")
+            if "key_reminders" in advice_data:
+                for r in advice_data["key_reminders"]:
+                    print(f"    - {r}")
+            if "overall_assessment" in advice_data:
+                print(f"  {advice_data['overall_assessment']}")
+            if "lifestyle_tips" in advice_data:
+                for t in advice_data["lifestyle_tips"]:
+                    print(f"    - {t}")
+        except (json.JSONDecodeError, TypeError):
+            print(f"  {advice}")
+
     print()
 
 
@@ -92,7 +140,7 @@ def main() -> int:
     parser.add_argument("image_path", help="Path to the image file to analyze")
     parser.add_argument(
         "--provider",
-        choices=["mock", "sealion"],
+        choices=["mock", "sealion", "gemini"],
         default=None,
         help="VLM provider to use (default: from .env or 'mock')",
     )
@@ -116,8 +164,12 @@ def main() -> int:
         print(f"Error: {e}", file=sys.stderr)
         return 1
 
+    # Build text LLM (SeaLION) for health advice — optional
+    text_llm = _build_text_llm() if provider != VLMProvider.MOCK else None
+
     graph = build_graph(
         vlm=vlm,
+        text_llm=text_llm,
         max_retries=settings.vlm_max_retries,
         retry_delay_s=settings.vlm_retry_delay_s,
     )
@@ -129,11 +181,13 @@ def main() -> int:
         "confidence": 0.0,
         "raw_response": "",
         "structured_output": {},
+        "advice": "",
         "error": None,
     }
 
     if not args.as_json:
-        print(f"Analyzing: {args.image_path}  (provider: {provider.value})")
+        advisor_status = text_llm.model_name if text_llm else "disabled"
+        print(f"Analyzing: {args.image_path}  (vision: {provider.value}, advisor: {advisor_status})")
 
     result = graph.invoke(initial_state)
     _print_result(result, args.as_json)

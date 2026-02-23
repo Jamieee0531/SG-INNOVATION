@@ -26,11 +26,14 @@ coverage-html:  ## Generate HTML coverage report
 lint:  ## Run ruff linter (install separately: pip install ruff)
 	$(VENV)/bin/ruff check src/ tests/ || echo "Install ruff: pip install ruff"
 
-run:  ## Analyze a test image (usage: make run IMG=path/to/image.jpg)
+run:  ## Analyze image with mock (usage: make run IMG=path/to/image.jpg)
 	$(PYTHON) -m src.vision_agent $(IMG) --provider mock
 
-run-json:  ## Analyze image, output JSON (usage: make run-json IMG=path/to/image.jpg)
-	$(PYTHON) -m src.vision_agent $(IMG) --provider mock --json
+run-gemini:  ## Analyze image with Gemini VLM (usage: make run-gemini IMG=path/to/image.jpg)
+	$(PYTHON) -m src.vision_agent $(IMG) --provider gemini
+
+run-json:  ## Analyze image, output JSON (usage: make run-json IMG=path/to/image.jpg PROVIDER=gemini)
+	$(PYTHON) -m src.vision_agent $(IMG) --provider $(or $(PROVIDER),mock) --json
 
 clean:  ## Remove venv, cache, and coverage artifacts
 	rm -rf $(VENV) __pycache__ .pytest_cache htmlcov .coverage

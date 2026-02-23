@@ -6,7 +6,7 @@ from pathlib import Path
 
 from src.vision_agent.state import VisionAgentState
 
-SUPPORTED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".bmp"}
+SUPPORTED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".avif"}
 MAX_FILE_SIZE_MB = 10
 
 

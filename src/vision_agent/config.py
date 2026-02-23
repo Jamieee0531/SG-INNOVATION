@@ -18,6 +18,7 @@ load_dotenv()
 class VLMProvider(str, Enum):
     MOCK = "mock"
     SEALION = "sealion"
+    GEMINI = "gemini"
 
 
 class Settings(BaseSettings):
@@ -27,6 +28,9 @@ class Settings(BaseSettings):
     # SEA-LION API (required only when vlm_provider=sealion)
     sealion_api_key: str = Field(default="", description="SEA-LION API key")
     sealion_api_url: str = Field(default="", description="SEA-LION API base URL")
+
+    # Gemini API (required only when vlm_provider=gemini)
+    gemini_api_key: str = Field(default="", description="Google Gemini API key")
 
     # Logging
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
@@ -43,18 +47,21 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
     )
 
-    @field_validator("sealion_api_key", "sealion_api_url", mode="before")
+    @field_validator("sealion_api_key", "sealion_api_url", "gemini_api_key", mode="before")
     @classmethod
     def strip_whitespace(cls, v: str) -> str:
         return v.strip() if isinstance(v, str) else v
 
-    def validate_sealion_config(self) -> None:
-        """Raise ValueError if sealion provider selected but credentials missing."""
+    def validate_provider_config(self) -> None:
+        """Raise ValueError if selected provider credentials are missing."""
         if self.vlm_provider == VLMProvider.SEALION:
             if not self.sealion_api_key:
                 raise ValueError("SEALION_API_KEY must be set when vlm_provider=sealion")
             if not self.sealion_api_url:
                 raise ValueError("SEALION_API_URL must be set when vlm_provider=sealion")
+        elif self.vlm_provider == VLMProvider.GEMINI:
+            if not self.gemini_api_key:
+                raise ValueError("GEMINI_API_KEY must be set when vlm_provider=gemini")
 
 
 def get_settings() -> Settings:

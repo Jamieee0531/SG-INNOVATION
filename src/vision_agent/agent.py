@@ -60,6 +60,7 @@ class AnalysisResult:
     confidence: float
     structured_output: Optional[AnalysisOutput]
     raw_response: str
+    advice: str
     error: Optional[str]
     image_path: str
 
@@ -103,29 +104,37 @@ class VisionAgent:
     """High-level API for analyzing medical images.
 
     Wraps the LangGraph Vision Agent and returns typed AnalysisResult objects.
+    Supports dual-model architecture: vision VLM (Gemini) + text LLM (SeaLION).
     """
 
     def __init__(
         self,
         vlm: Optional[BaseVLM] = None,
+        text_llm: Optional[BaseVLM] = None,
         max_retries: int = 3,
         retry_delay_s: float = 1.0,
     ) -> None:
         """
         Args:
-            vlm: VLM implementation. Defaults to MockVLM for development.
-            max_retries: Retry attempts for VLM failures (SEA-LION only).
+            vlm: Vision VLM for image understanding (e.g. Gemini). Defaults to MockVLM.
+            text_llm: Text LLM for health advice (e.g. SeaLION). Optional.
+            max_retries: Retry attempts for VLM failures.
             retry_delay_s: Initial delay between retries.
         """
         if vlm is None:
             vlm = MockVLM()
             logger.info("VisionAgent initialized with MockVLM (development mode)")
         else:
-            logger.info("VisionAgent initialized with %s", vlm.model_name)
+            logger.info("VisionAgent initialized with vision=%s", vlm.model_name)
+
+        if text_llm is not None:
+            logger.info("Health advisor enabled with text_llm=%s", text_llm.model_name)
 
         self._vlm = vlm
+        self._text_llm = text_llm
         self._graph = build_graph(
             vlm=vlm,
+            text_llm=text_llm,
             max_retries=max_retries,
             retry_delay_s=retry_delay_s,
         )
@@ -149,6 +158,7 @@ class VisionAgent:
             "confidence": 0.0,
             "raw_response": "",
             "structured_output": {},
+            "advice": "",
             "error": None,
         }
 
@@ -168,6 +178,7 @@ class VisionAgent:
                 confidence=0.0,
                 structured_output=None,
                 raw_response=state.get("raw_response", ""),
+                advice="",
                 error=raw_output.get("error", "Unknown error"),
                 image_path=image_path,
             )
@@ -187,6 +198,7 @@ class VisionAgent:
             confidence=state.get("confidence", raw_output.get("confidence", 0.0)),
             structured_output=typed_output,
             raw_response=state.get("raw_response", ""),
+            advice=state.get("advice", ""),
             error=error,
             image_path=image_path,
         )
