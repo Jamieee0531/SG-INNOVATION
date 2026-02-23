@@ -79,6 +79,28 @@ class TestVisionAgentAnalyze:
         result = agent.analyze(mock_image_path)
         assert mock_image_path in result.image_path
 
+    def test_analyze_accepts_string(self, mock_image_path):
+        """Single string path should work (backward compat)."""
+        agent = VisionAgent(vlm=MockVLM(forced_scene="FOOD"))
+        result = agent.analyze(mock_image_path)
+        assert not result.is_multi_image
+        assert result.image_path != ""
+
+    def test_analyze_accepts_list(self, mock_image_path):
+        """List of paths should work."""
+        agent = VisionAgent(vlm=MockVLM(forced_scene="FOOD"))
+        result = agent.analyze([mock_image_path])
+        assert not result.is_multi_image
+
+    def test_analyze_multi_image(self, mock_image_path):
+        """Multiple paths should mark is_multi_image=True."""
+        agent = VisionAgent(vlm=MockVLM(forced_scene="FOOD"))
+        result = agent.analyze([mock_image_path, mock_image_path])
+        assert result.is_multi_image
+        assert len(result.image_paths) == 2
+        # Backward compat: image_path returns first
+        assert result.image_path == result.image_paths[0]
+
 
 class TestAnalysisResultHelpers:
     def _make_food_result(self, mock_image_path) -> AnalysisResult:
@@ -107,3 +129,8 @@ class TestAnalysisResultHelpers:
         med = result.as_medication
         assert med is not None
         assert len(med.drug_name) > 0
+
+    def test_image_path_property_backward_compat(self, mock_image_path):
+        result = self._make_food_result(mock_image_path)
+        # image_path should return first path from image_paths
+        assert result.image_path == result.image_paths[0]

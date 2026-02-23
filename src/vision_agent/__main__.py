@@ -1,10 +1,11 @@
 """CLI entry point for Vision Agent.
 
 Usage:
-    python -m vision_agent <image_path> [--provider mock|sealion] [--json]
+    python -m vision_agent <image_path> [image_path ...] [--provider mock|sealion|gemini] [--json]
 
 Examples:
     python -m vision_agent meal.jpg
+    python -m vision_agent front.jpg back.jpg              # multi-image
     python -m vision_agent prescription.png --provider sealion
     python -m vision_agent report.jpg --json
 """
@@ -137,7 +138,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description="Vision Agent - analyze medical images (food, medication, reports)"
     )
-    parser.add_argument("image_path", help="Path to the image file to analyze")
+    parser.add_argument(
+        "image_paths",
+        nargs="+",
+        help="Path(s) to image file(s) to analyze",
+    )
     parser.add_argument(
         "--provider",
         choices=["mock", "sealion", "gemini"],
@@ -174,9 +179,11 @@ def main() -> int:
         retry_delay_s=settings.vlm_retry_delay_s,
     )
 
+    resolved_paths = [str(Path(p).resolve()) for p in args.image_paths]
+
     initial_state = {
-        "image_path": str(Path(args.image_path).resolve()),
-        "image_base64": "",
+        "image_paths": resolved_paths,
+        "images_base64": [],
         "scene_type": "",
         "confidence": 0.0,
         "raw_response": "",
@@ -187,7 +194,8 @@ def main() -> int:
 
     if not args.as_json:
         advisor_status = text_llm.model_name if text_llm else "disabled"
-        print(f"Analyzing: {args.image_path}  (vision: {provider.value}, advisor: {advisor_status})")
+        img_label = ", ".join(args.image_paths)
+        print(f"Analyzing: {img_label}  (vision: {provider.value}, advisor: {advisor_status})")
 
     result = graph.invoke(initial_state)
     _print_result(result, args.as_json)

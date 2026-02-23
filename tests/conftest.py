@@ -39,12 +39,13 @@ def mock_png_path() -> Generator[str, None, None]:
 def base_state(mock_image_path: str) -> dict:
     """Return a minimal valid initial state for graph invocation."""
     return {
-        "image_path": mock_image_path,
-        "image_base64": "",
+        "image_paths": [mock_image_path],
+        "images_base64": [],
         "scene_type": "",
         "confidence": 0.0,
         "raw_response": "",
         "structured_output": {},
+        "advice": "",
         "error": None,
     }
 

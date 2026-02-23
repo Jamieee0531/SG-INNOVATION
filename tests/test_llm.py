@@ -12,6 +12,31 @@ class TestBaseVLM:
         with pytest.raises(TypeError):
             BaseVLM()  # type: ignore
 
+    def test_call_multi_default_uses_first_image(self):
+        """Default call_multi() should delegate to call() with images_base64[0]."""
+        class StubVLM(BaseVLM):
+            def call(self, prompt: str, image_base64: str) -> str:
+                return f"received:{image_base64}"
+            @property
+            def model_name(self) -> str:
+                return "stub"
+
+        vlm = StubVLM()
+        result = vlm.call_multi("prompt", ["img_a", "img_b"])
+        assert result == "received:img_a"
+
+    def test_call_multi_empty_list_raises(self):
+        class StubVLM(BaseVLM):
+            def call(self, prompt: str, image_base64: str) -> str:
+                return ""
+            @property
+            def model_name(self) -> str:
+                return "stub"
+
+        vlm = StubVLM()
+        with pytest.raises(VLMError, match="at least one image"):
+            vlm.call_multi("prompt", [])
+
 
 class TestMockVLM:
     def test_model_name(self):
@@ -77,3 +102,14 @@ class TestMockVLM:
             data = json.loads(response)  # must not raise
             assert "scene_type" in data
             assert "confidence" in data
+
+    def test_call_multi_works(self):
+        vlm = MockVLM(forced_scene="FOOD")
+        response = vlm.call_multi("test", ["b64a", "b64b"])
+        data = json.loads(response)
+        assert data["scene_type"] == "FOOD"
+
+    def test_call_multi_empty_raises(self):
+        vlm = MockVLM()
+        with pytest.raises(VLMError, match="at least one image"):
+            vlm.call_multi("test", [])

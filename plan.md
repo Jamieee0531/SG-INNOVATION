@@ -84,23 +84,46 @@
 - [x] **LangGraph 状态图** (`graph.py`)：完整 START→intake→classify→analyze→format→END 流程
 - [x] **7 个节点** (`nodes/`)：image_intake, scene_classifier, food/medication/report analyzer, rejection_handler, output_formatter
 - [x] **Pydantic v2 输出校验** (`schemas/outputs.py`)：FoodOutput, MedicationOutput, ReportOutput, UnknownOutput
-- [x] **VLM 抽象接口** (`llm/base.py`)：模型可替换，SEA-LION 只是一个实现
+- [x] **VLM 抽象接口** (`llm/base.py`)：模型可替换，SEA-LION 只是一个实现；支持 `call()` 单图 + `call_multi()` 多图
 - [x] **MockVLM** (`llm/mock.py`)：4 食物 / 4 药物 / 3 报告场景，含真实新加坡数据
-- [x] **RetryVLM** (`llm/retry.py`)：指数退避重试包装器
-- [x] **VisionAgent API** (`agent.py`)：`agent.analyze(image_path)` → 类型化 AnalysisResult
-- [x] **CLI 入口** (`__main__.py`)：`python -m src.vision_agent image.jpg [--json] [--provider]`
+- [x] **RetryVLM** (`llm/retry.py`)：指数退避重试包装器（`call()` + `call_multi()` 均支持）
+- [x] **VisionAgent API** (`agent.py`)：`agent.analyze(image_path)` 支持 `str | list[str]`，返回类型化 AnalysisResult
+- [x] **CLI 入口** (`__main__.py`)：支持单图和多图 `python -m src.vision_agent img1.jpg [img2.jpg ...] [--json] [--provider]`
 - [x] **配置管理** (`config.py`)：pydantic-settings，从 `.env` 读取
 - [x] **异常处理**：模糊图片/非目标图片 → UNKNOWN，错误统一走 output_formatter
 
 ### 🔄 Phase 4: 测试与真实 API 接入 — 进行中
 
-- [x] **Mock 测试**: 156 个测试用例，99%+ 覆盖率，全部通过
+- [x] **Mock 测试**: 171 个测试用例，99%+ 覆盖率，全部通过
 - [x] **参数化测试**: 所有场景的每个 Mock 变体均通过 schema 验证
 - [x] **Gemini VLM 接入**: `llm/gemini.py` — Gemini 2.5 Flash 作为临时 VLM（已验证可用）
 - [x] **SEA-LION 文本接入**: `llm/sealion.py` — Gemma-SEA-LION-v4-27B-IT 文本模型（已验证可用）
+- [x] **多图片支持**: 架构扩展，支持多张图片作为一个上下文一起分析（药盒正面+背面、多页报告）
 - [ ] **真实图片测试**: 收集 20 张图片，用 Gemini 跑端到端测试
 - [ ] **Prompt 优化**: 根据 Gemini 真实输出迭代 prompt
 - [ ] **准确率评估**: 识别 10-20 张典型图片（含模糊、复杂食物、手写单据）
+
+### ✅ Phase 4.5: 多图片支持架构扩展 — 已完成
+
+**背景**：真实场景中药盒需拍正面+背面，多页报告一张图拍不完。Gemini API 原生支持多图（`parts[]` 数组）。
+
+**核心改动**：
+
+| 改动 | 详情 |
+|------|------|
+| `BaseVLM.call_multi()` | 新增非抽象方法，默认取第一张图调 `call()`，子类可覆写原生多图 |
+| `GeminiVLM.call_multi()` | 覆写为原生多 `inline_data` part，真正的多图理解 |
+| `State` 字段 | `image_path → image_paths: list[str]`，`image_base64 → images_base64: list[str]` |
+| `image_intake` 节点 | 逐个验证+编码，`MAX_IMAGES=5` 上限 |
+| 4 个分析节点 | 全部切换为 `call_multi()`，读 `images_base64` |
+| `VisionAgent.analyze()` | 参数改为 `Union[str, list[str]]`，内部统一转 list |
+| `AnalysisResult` | `image_paths: list[str]`，新增 `image_path` property（返回首个，向后兼容）+ `is_multi_image` |
+| CLI | `nargs="+"` 支持多路径 |
+| Prompt 模板 | 4 个 prompt 加多图上下文说明 |
+
+**向后兼容**：单图调用方式完全不变，`AnalysisResult.image_path` 仍可用。
+
+**测试**：171 个测试全部通过，新增多图 intake / MAX_IMAGES 超限 / call_multi 空列表 / analyze 接受 str 和 list 等测试。
 
 ---
 
@@ -193,7 +216,7 @@ SG_INNOVATION/
 │   ├── nodes/             # 7 个处理节点
 │   ├── prompts/           # 4 个 SG 优化 Prompt
 │   └── schemas/           # Pydantic 输出模型
-└── tests/                 # 156 个测试，99%+ 覆盖率
+└── tests/                 # 171 个测试，99%+ 覆盖率
 ```
 
 ### 快速命令
@@ -202,9 +225,10 @@ SG_INNOVATION/
 source .venv/bin/activate                                       # 激活虚拟环境
 make test                                                       # 跑所有测试
 make coverage                                                   # 测试 + 覆盖率报告
-make run IMG=xxx.jpg                                            # 用 Mock 分析图片
+make run IMG=xxx.jpg                                            # 用 Mock 分析图片（单图）
 make run-gemini IMG=xxx.jpg                                     # 用 Gemini 真实 VLM 分析
 python -m src.vision_agent xxx.jpg --provider gemini --json     # CLI + JSON 输出
+python -m src.vision_agent front.jpg back.jpg --provider gemini # 多图分析（药盒正反面等）
 ```
 
 > [!TIP]

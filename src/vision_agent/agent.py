@@ -10,6 +10,11 @@ Usage:
     result = agent.analyze("/path/to/meal.jpg")
     print(result.scene_type)                       # "FOOD"
     print(result.structured_output)               # validated Pydantic model
+
+    # Multi-image support:
+    result = agent.analyze(["/path/front.jpg", "/path/back.jpg"])
+    print(result.is_multi_image)                  # True
+    print(result.image_path)                      # first path (backward compat)
 """
 
 from __future__ import annotations
@@ -53,7 +58,7 @@ class AnalysisResult:
         structured_output: Validated Pydantic model, or None on error.
         raw_response: Raw VLM text response (useful for debugging).
         error: Error message if analysis failed, None on success.
-        image_path: The input image path that was analyzed.
+        image_paths: The input image path(s) that were analyzed.
     """
 
     scene_type: str
@@ -62,7 +67,16 @@ class AnalysisResult:
     raw_response: str
     advice: str
     error: Optional[str]
-    image_path: str
+    image_paths: list[str]
+
+    @property
+    def image_path(self) -> str:
+        """Return the first image path (backward compatibility)."""
+        return self.image_paths[0] if self.image_paths else ""
+
+    @property
+    def is_multi_image(self) -> bool:
+        return len(self.image_paths) > 1
 
     @property
     def is_food(self) -> bool:
@@ -139,21 +153,26 @@ class VisionAgent:
             retry_delay_s=retry_delay_s,
         )
 
-    def analyze(self, image_path: str) -> AnalysisResult:
-        """Analyze an image and return a structured AnalysisResult.
+    def analyze(self, image_path: Union[str, list[str]]) -> AnalysisResult:
+        """Analyze image(s) and return a structured AnalysisResult.
 
         Args:
-            image_path: Absolute or relative path to the image file.
+            image_path: Path or list of paths to image file(s).
 
         Returns:
             AnalysisResult with scene_type, structured_output, and metadata.
         """
-        resolved_path = str(Path(image_path).resolve())
-        logger.debug("Analyzing image: %s", resolved_path)
+        if isinstance(image_path, str):
+            paths = [image_path]
+        else:
+            paths = list(image_path)
+
+        resolved_paths = [str(Path(p).resolve()) for p in paths]
+        logger.debug("Analyzing image(s): %s", resolved_paths)
 
         initial_state = {
-            "image_path": resolved_path,
-            "image_base64": "",
+            "image_paths": resolved_paths,
+            "images_base64": [],
             "scene_type": "",
             "confidence": 0.0,
             "raw_response": "",
@@ -163,9 +182,9 @@ class VisionAgent:
         }
 
         state = self._graph.invoke(initial_state)
-        return self._parse_result(state, image_path)
+        return self._parse_result(state, paths)
 
-    def _parse_result(self, state: dict, image_path: str) -> AnalysisResult:
+    def _parse_result(self, state: dict, image_paths: list[str]) -> AnalysisResult:
         """Convert raw graph state into a typed AnalysisResult."""
         raw_output = state.get("structured_output", {})
         scene_type = state.get("scene_type") or raw_output.get("scene_type", "UNKNOWN")
@@ -180,7 +199,7 @@ class VisionAgent:
                 raw_response=state.get("raw_response", ""),
                 advice="",
                 error=raw_output.get("error", "Unknown error"),
-                image_path=image_path,
+                image_paths=image_paths,
             )
 
         # Try to instantiate the typed Pydantic model
@@ -200,7 +219,7 @@ class VisionAgent:
             raw_response=state.get("raw_response", ""),
             advice=state.get("advice", ""),
             error=error,
-            image_path=image_path,
+            image_paths=image_paths,
         )
 
     @property

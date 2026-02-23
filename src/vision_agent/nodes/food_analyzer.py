@@ -20,7 +20,7 @@ def make_food_analyzer(vlm: BaseVLM):
             return {}
 
         try:
-            raw = vlm.call(FOOD_PROMPT, state["image_base64"])
+            raw = vlm.call_multi(FOOD_PROMPT, state["images_base64"])
             data = json.loads(raw)
             validated = FoodOutput(**data)
 

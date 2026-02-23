@@ -21,7 +21,7 @@ def make_report_digitizer(vlm: BaseVLM):
             return {}
 
         try:
-            raw = vlm.call(REPORT_PROMPT, state["image_base64"])
+            raw = vlm.call_multi(REPORT_PROMPT, state["images_base64"])
             data = json.loads(raw)
             validated = ReportOutput(**data)
 

@@ -11,9 +11,9 @@ Part of the **SG INNOVATION** competition platform for diabetic patient care.
 ### LangGraph Pipeline
 
 ```
-[Image Input]
+[Image Input(s)]      One or more images (e.g. front+back of medicine box)
      |
-[image_intake]        Receive image, convert to base64, validate
+[image_intake]        Receive image(s), validate each, convert to base64
      |
 [scene_classifier]    Classify scene: FOOD / MEDICATION / REPORT / UNKNOWN
      |
@@ -78,6 +78,9 @@ make run-gemini IMG=test_images/chicken_rice.jpg
 # Analyze with mock (no API, for dev/testing)
 make run IMG=test_images/sample.jpg
 
+# Multi-image analysis (e.g. front + back of medicine box)
+python -m src.vision_agent front.jpg back.jpg --provider gemini
+
 # JSON output
 make run-json IMG=test_images/sample.jpg PROVIDER=gemini
 
@@ -88,7 +91,7 @@ python -m src.vision_agent photo.jpg --provider gemini --json
 ### 4. Test
 
 ```bash
-make test              # Run all tests (156 tests)
+make test              # Run all tests (171 tests)
 make coverage          # Tests + coverage report (99%+)
 ```
 
@@ -136,7 +139,7 @@ SG_INNOVATION/
 │   └── schemas/                     # Pydantic v2 output models
 │       └── outputs.py               # FoodOutput, MedicationOutput, ReportOutput
 │
-├── tests/                           # 156 tests, 99%+ coverage
+├── tests/                           # 171 tests, 99%+ coverage
 │   ├── conftest.py                  # Shared fixtures
 │   ├── test_config.py
 │   ├── test_graph.py
@@ -216,6 +219,12 @@ print(result.scene_type)        # "FOOD"
 print(result.confidence)        # 0.91
 print(result.as_food.items)     # [FoodItem(...), ...]
 
+# Multi-image analysis (e.g. front + back of medicine box)
+result = agent.analyze(["front.jpg", "back.jpg"])
+print(result.is_multi_image)    # True
+print(result.image_path)        # "front.jpg" (backward compatible)
+print(result.image_paths)       # ["front.jpg", "back.jpg"]
+
 # With Mock (dev/testing, no API calls)
 agent = VisionAgent()
 result = agent.analyze("any_image.jpg")
@@ -240,7 +249,7 @@ result = agent.analyze("any_image.jpg")
 - **VLM**: Gemini 2.5 Flash (temp) / SEA-LION (planned)
 - **Validation**: Pydantic v2
 - **HTTP**: httpx
-- **Testing**: pytest (156 tests, 99%+ coverage)
+- **Testing**: pytest (171 tests, 99%+ coverage)
 
 ## License
 

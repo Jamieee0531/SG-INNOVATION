@@ -10,10 +10,10 @@ from src.vision_agent.llm.mock import MockVLM
 from src.vision_agent.nodes.scene_classifier import make_scene_classifier
 
 
-def _state(scene_type="", error=None, image_base64="b64data"):
+def _state(scene_type="", error=None, images_base64=None):
     return {
-        "image_path": "/tmp/test.jpg",
-        "image_base64": image_base64,
+        "image_paths": ["/tmp/test.jpg"],
+        "images_base64": images_base64 if images_base64 is not None else ["b64data"],
         "scene_type": scene_type,
         "confidence": 0.0,
         "raw_response": "",
@@ -53,7 +53,7 @@ class TestSceneClassifier:
 
     def test_invalid_json_returns_error(self):
         bad_vlm = MagicMock()
-        bad_vlm.call.return_value = "this is not json at all"
+        bad_vlm.call_multi.return_value = "this is not json at all"
         node = make_scene_classifier(bad_vlm)
         result = node(_state())
         assert result["error"] is not None
@@ -62,7 +62,7 @@ class TestSceneClassifier:
 
     def test_vlm_error_returns_error(self):
         failing_vlm = MagicMock()
-        failing_vlm.call.side_effect = VLMError("API timeout")
+        failing_vlm.call_multi.side_effect = VLMError("API timeout")
         node = make_scene_classifier(failing_vlm)
         result = node(_state())
         assert result["error"] is not None
@@ -71,7 +71,7 @@ class TestSceneClassifier:
 
     def test_unknown_scene_type_normalized(self):
         weird_vlm = MagicMock()
-        weird_vlm.call.return_value = json.dumps({
+        weird_vlm.call_multi.return_value = json.dumps({
             "scene_type": "SELFIE",
             "confidence": 0.5,
             "reason": "It's a selfie"

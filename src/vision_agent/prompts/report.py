@@ -47,4 +47,5 @@ Rules:
 - Preserve exact printed values (do not convert units or round)
 - is_abnormal = true if: the report marks it H/L/HIGH/LOW/*, OR value falls outside reference_range
 - For glucose monitoring logs, extract each reading as a separate indicator with timestamp if available
-- Do not include any text outside the JSON"""
+- Do not include any text outside the JSON
+- You may receive one or more images (e.g. multiple pages of a report). Treat all provided images as a single combined context"""

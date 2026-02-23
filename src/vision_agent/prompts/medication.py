@@ -39,4 +39,5 @@ Rules:
 - Expand Singapore frequency codes: OD→once daily, BD→twice daily, TDS→three times daily, QID→four times daily
 - Extract warnings verbatim from the label
 - Use null for any field not visible
-- Do not include any text outside the JSON"""
+- Do not include any text outside the JSON
+- You may receive one or more images (e.g. front and back of a medicine box). Treat all provided images as a single combined context"""

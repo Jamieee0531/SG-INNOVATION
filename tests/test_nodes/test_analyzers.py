@@ -12,10 +12,10 @@ from src.vision_agent.nodes.medication_reader import make_medication_reader
 from src.vision_agent.nodes.report_digitizer import make_report_digitizer
 
 
-def _state(error=None, image_base64="b64data"):
+def _state(error=None, images_base64=None):
     return {
-        "image_path": "/tmp/test.jpg",
-        "image_base64": image_base64,
+        "image_paths": ["/tmp/test.jpg"],
+        "images_base64": images_base64 if images_base64 is not None else ["b64data"],
         "scene_type": "FOOD",
         "confidence": 0.9,
         "raw_response": "",
@@ -43,7 +43,7 @@ class TestFoodAnalyzer:
 
     def test_invalid_json_returns_error(self):
         bad_vlm = MagicMock()
-        bad_vlm.call.return_value = "{ broken json ..."
+        bad_vlm.call_multi.return_value = "{ broken json ..."
         node = make_food_analyzer(bad_vlm)
         result = node(_state())
         assert result["error"] is not None
@@ -51,7 +51,7 @@ class TestFoodAnalyzer:
 
     def test_vlm_error_returns_error(self):
         failing = MagicMock()
-        failing.call.side_effect = VLMError("network timeout")
+        failing.call_multi.side_effect = VLMError("network timeout")
         node = make_food_analyzer(failing)
         result = node(_state())
         assert result["error"] is not None
@@ -59,7 +59,7 @@ class TestFoodAnalyzer:
 
     def test_validation_error_on_bad_schema(self):
         bad_vlm = MagicMock()
-        bad_vlm.call.return_value = json.dumps({
+        bad_vlm.call_multi.return_value = json.dumps({
             "scene_type": "FOOD",
             # missing required 'items' and 'total_calories_kcal'
             "confidence": 0.9,
@@ -94,7 +94,7 @@ class TestMedicationReader:
 
     def test_invalid_json_returns_error(self):
         bad_vlm = MagicMock()
-        bad_vlm.call.return_value = "NOT JSON"
+        bad_vlm.call_multi.return_value = "NOT JSON"
         node = make_medication_reader(bad_vlm)
         result = node(_state())
         assert result["error"] is not None
@@ -102,7 +102,7 @@ class TestMedicationReader:
 
     def test_vlm_error_returns_error(self):
         failing = MagicMock()
-        failing.call.side_effect = VLMError("API key invalid")
+        failing.call_multi.side_effect = VLMError("API key invalid")
         node = make_medication_reader(failing)
         result = node(_state())
         assert result["error"] is not None
@@ -110,7 +110,7 @@ class TestMedicationReader:
 
     def test_validation_error_on_bad_schema(self):
         bad_vlm = MagicMock()
-        bad_vlm.call.return_value = json.dumps({
+        bad_vlm.call_multi.return_value = json.dumps({
             "scene_type": "MEDICATION",
             # missing drug_name, dosage, frequency
             "confidence": 0.8,
@@ -139,7 +139,7 @@ class TestReportDigitizer:
 
     def test_invalid_json_returns_error(self):
         bad_vlm = MagicMock()
-        bad_vlm.call.return_value = "invalid"
+        bad_vlm.call_multi.return_value = "invalid"
         node = make_report_digitizer(bad_vlm)
         result = node(_state())
         assert result["error"] is not None
@@ -147,7 +147,7 @@ class TestReportDigitizer:
 
     def test_vlm_error_returns_error(self):
         failing = MagicMock()
-        failing.call.side_effect = VLMError("server error 500")
+        failing.call_multi.side_effect = VLMError("server error 500")
         node = make_report_digitizer(failing)
         result = node(_state())
         assert result["error"] is not None

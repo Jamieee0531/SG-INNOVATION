@@ -75,6 +75,49 @@ class GeminiVLM(BaseVLM):
         except httpx.RequestError as e:
             raise VLMError(f"Gemini network error: {e}") from e
 
+    def call_multi(self, prompt: str, images_base64: list[str]) -> str:
+        """Send prompt + multiple images to Gemini (native multi-image support)."""
+        if not images_base64:
+            raise VLMError("call_multi() requires at least one image.")
+        if len(images_base64) == 1:
+            return self.call(prompt, images_base64[0])
+
+        url = f"{_API_BASE}/models/{self._model}:generateContent?key={self._api_key}"
+
+        parts: list[dict] = []
+        for img_b64 in images_base64:
+            parts.append({
+                "inline_data": {
+                    "mime_type": "image/jpeg",
+                    "data": img_b64,
+                },
+            })
+        parts.append({"text": prompt})
+
+        payload = {
+            "contents": [{"parts": parts}],
+            "generationConfig": {
+                "temperature": 0.1,
+                "maxOutputTokens": 4096,
+            },
+        }
+
+        try:
+            response = httpx.post(
+                url,
+                json=payload,
+                timeout=self._timeout,
+            )
+            response.raise_for_status()
+            data = response.json()
+            return self._extract_text(data)
+        except httpx.HTTPStatusError as e:
+            raise VLMError(
+                f"Gemini API error {e.response.status_code}: {e.response.text}"
+            ) from e
+        except httpx.RequestError as e:
+            raise VLMError(f"Gemini network error: {e}") from e
+
     def _extract_text(self, data: dict) -> str:
         """Extract text content from Gemini API response."""
         try:

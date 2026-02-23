@@ -8,8 +8,8 @@ from src.vision_agent.nodes.rejection_handler import rejection_handler
 
 def _state(structured_output=None, error=None, scene_type="FOOD", confidence=0.9):
     return {
-        "image_path": "/tmp/test.jpg",
-        "image_base64": "b64",
+        "image_paths": ["/tmp/test.jpg"],
+        "images_base64": ["b64"],
         "scene_type": scene_type,
         "confidence": confidence,
         "raw_response": "",

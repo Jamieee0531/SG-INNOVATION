@@ -37,4 +37,6 @@ Respond with ONLY a JSON object:
   "reason": "<one concise sentence explaining the classification>"
 }
 
+You may receive one or more images. Treat all provided images as a single combined context for classification.
+
 No other text outside the JSON."""

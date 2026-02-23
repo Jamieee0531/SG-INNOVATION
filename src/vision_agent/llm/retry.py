@@ -70,3 +70,33 @@ class RetryVLM(BaseVLM):
         raise VLMError(
             f"VLM call failed after {self._max_retries} attempts: {last_error}"
         )
+
+    def call_multi(self, prompt: str, images_base64: list[str]) -> str:
+        last_error: Optional[Exception] = None
+        delay = self._delay_s
+
+        for attempt in range(1, self._max_retries + 1):
+            try:
+                return self._vlm.call_multi(prompt, images_base64)
+            except VLMError as e:
+                last_error = e
+                if attempt < self._max_retries:
+                    logger.warning(
+                        "VLM call_multi failed (attempt %d/%d): %s. Retrying in %.1fs...",
+                        attempt,
+                        self._max_retries,
+                        e,
+                        delay,
+                    )
+                    time.sleep(delay)
+                    delay *= self._backoff_factor
+                else:
+                    logger.error(
+                        "VLM call_multi failed after %d attempts: %s",
+                        self._max_retries,
+                        e,
+                    )
+
+        raise VLMError(
+            f"VLM call failed after {self._max_retries} attempts: {last_error}"
+        )

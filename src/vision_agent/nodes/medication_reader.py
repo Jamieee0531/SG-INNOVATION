@@ -21,7 +21,7 @@ def make_medication_reader(vlm: BaseVLM):
             return {}
 
         try:
-            raw = vlm.call(MEDICATION_PROMPT, state["image_base64"])
+            raw = vlm.call_multi(MEDICATION_PROMPT, state["images_base64"])
             data = json.loads(raw)
             validated = MedicationOutput(**data)
 

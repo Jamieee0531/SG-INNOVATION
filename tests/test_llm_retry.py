@@ -77,3 +77,27 @@ class TestRetryVLM:
                 retry.call("prompt", "b64")
             # Only 1 sleep (between attempt 1 and 2), not after final failure
             assert mock_sleep.call_count == 1
+
+
+class TestRetryVLMCallMulti:
+    def test_call_multi_succeeds(self):
+        inner = MockVLM(forced_scene="FOOD")
+        retry = RetryVLM(inner, max_retries=3, delay_s=0)
+        result = retry.call_multi("prompt", ["b64"])
+        assert "FOOD" in result
+
+    def test_call_multi_retries_on_failure(self):
+        inner = MagicMock()
+        inner.call_multi.side_effect = [VLMError("timeout"), "success"]
+        retry = RetryVLM(inner, max_retries=3, delay_s=0)
+        result = retry.call_multi("prompt", ["b64"])
+        assert result == "success"
+        assert inner.call_multi.call_count == 2
+
+    def test_call_multi_raises_after_exhausted(self):
+        inner = MagicMock()
+        inner.call_multi.side_effect = VLMError("always fails")
+        retry = RetryVLM(inner, max_retries=2, delay_s=0)
+        with pytest.raises(VLMError, match="2 attempts"):
+            retry.call_multi("prompt", ["b64"])
+        assert inner.call_multi.call_count == 2

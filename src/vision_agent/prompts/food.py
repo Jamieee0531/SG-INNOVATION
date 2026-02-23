@@ -61,4 +61,5 @@ Rules:
 - Use null for nutritional values you genuinely cannot estimate
 - If you cannot identify a dish, describe it literally (e.g. "Unidentified fried rice dish")
 - Include all sides, condiments, and drinks visible
-- Do not include any text outside the JSON"""
+- Do not include any text outside the JSON
+- You may receive one or more images. Treat all provided images as a single combined context for analysis"""

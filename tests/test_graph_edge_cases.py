@@ -23,8 +23,8 @@ def _make_image(ext=".jpg") -> str:
 
 def _state(image_path: str) -> dict:
     return {
-        "image_path": image_path,
-        "image_base64": "",
+        "image_paths": [image_path],
+        "images_base64": [],
         "scene_type": "",
         "confidence": 0.0,
         "raw_response": "",
@@ -37,7 +37,7 @@ class TestGraphRetryIntegration:
     def test_graph_uses_retry_for_real_vlm(self):
         """Non-mock VLMs should be wrapped in RetryVLM inside build_graph."""
         real_vlm = MagicMock()
-        real_vlm.call.return_value = json.dumps({
+        real_vlm.call_multi.return_value = json.dumps({
             "scene_type": "FOOD",
             "confidence": 0.9,
             "reason": "food detected"
@@ -131,7 +131,7 @@ class TestGraphVLMFailureScenarios:
 
     def test_classifier_json_failure_propagates_to_output(self):
         bad_vlm = MagicMock()
-        bad_vlm.call.return_value = "COMPLETELY INVALID JSON !!!"
+        bad_vlm.call_multi.return_value = "COMPLETELY INVALID JSON !!!"
         path = _make_image()
         try:
             graph = build_graph(vlm=bad_vlm)
@@ -145,7 +145,7 @@ class TestGraphVLMFailureScenarios:
         """Simulate classifier succeeding but analyzer failing."""
         call_count = 0
 
-        def side_effect(prompt, image_base64):
+        def side_effect(prompt, images_base64):
             nonlocal call_count
             call_count += 1
             if call_count == 1:
@@ -159,7 +159,7 @@ class TestGraphVLMFailureScenarios:
             return "{ broken"
 
         bad_vlm = MagicMock()
-        bad_vlm.call.side_effect = side_effect
+        bad_vlm.call_multi.side_effect = side_effect
         path = _make_image()
         try:
             graph = build_graph(vlm=bad_vlm)
@@ -196,24 +196,24 @@ class TestStateImmutability:
     def test_image_intake_does_not_mutate_input(self):
         from src.vision_agent.nodes.image_intake import image_intake
         state = {
-            "image_path": "/nonexistent/path.jpg",
-            "image_base64": "original",
+            "image_paths": ["/nonexistent/path.jpg"],
+            "images_base64": ["original"],
             "scene_type": "",
             "confidence": 0.0,
             "raw_response": "",
             "structured_output": {},
             "error": None,
         }
-        original_b64 = state["image_base64"]
+        original_b64 = state["images_base64"][:]
         image_intake(state)
         # Original state should be unchanged (LangGraph handles merging)
-        assert state["image_base64"] == original_b64
+        assert state["images_base64"] == original_b64
 
     def test_rejection_handler_does_not_mutate_input(self):
         from src.vision_agent.nodes.rejection_handler import rejection_handler
         state = {
-            "image_path": "/tmp/test.jpg",
-            "image_base64": "b64",
+            "image_paths": ["/tmp/test.jpg"],
+            "images_base64": ["b64"],
             "scene_type": "UNKNOWN",
             "confidence": 0.5,
             "raw_response": "",

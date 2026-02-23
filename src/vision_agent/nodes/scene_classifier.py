@@ -20,7 +20,7 @@ def make_scene_classifier(vlm: BaseVLM):
             return {}  # Propagate existing error, skip processing
 
         try:
-            raw = vlm.call(CLASSIFIER_PROMPT, state["image_base64"])
+            raw = vlm.call_multi(CLASSIFIER_PROMPT, state["images_base64"])
             data = json.loads(raw)
 
             scene_type = data.get("scene_type", "UNKNOWN").upper()

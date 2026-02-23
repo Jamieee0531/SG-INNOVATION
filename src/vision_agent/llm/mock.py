@@ -323,6 +323,14 @@ class MockVLM(BaseVLM):
         scene = self._forced_scene or self._infer_scene(prompt)
         return self._get_response(scene)
 
+    def call_multi(self, prompt: str, images_base64: list[str]) -> str:  # noqa: ARG002
+        """Mock ignores images; behaviour identical to call()."""
+        if not images_base64:
+            from src.vision_agent.llm.base import VLMError
+            raise VLMError("call_multi() requires at least one image.")
+        scene = self._forced_scene or self._infer_scene(prompt)
+        return self._get_response(scene)
+
     def _get_response(self, scene: str) -> str:
         scenarios = _ALL_SCENARIOS.get(scene, _ALL_SCENARIOS["UNKNOWN"])
         if self._random_scenario:

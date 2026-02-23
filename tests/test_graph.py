@@ -83,8 +83,8 @@ class TestGraphErrorHandling:
     def test_missing_image_path_propagates_error(self):
         graph = build_graph(vlm=MockVLM())
         state = {
-            "image_path": "",
-            "image_base64": "",
+            "image_paths": [],
+            "images_base64": [],
             "scene_type": "",
             "confidence": 0.0,
             "raw_response": "",
@@ -98,8 +98,8 @@ class TestGraphErrorHandling:
     def test_nonexistent_file_propagates_error(self):
         graph = build_graph(vlm=MockVLM())
         state = {
-            "image_path": "/tmp/no_such_file_xyz.jpg",
-            "image_base64": "",
+            "image_paths": ["/tmp/no_such_file_xyz.jpg"],
+            "images_base64": [],
             "scene_type": "",
             "confidence": 0.0,
             "raw_response": "",
@@ -112,8 +112,8 @@ class TestGraphErrorHandling:
     def test_default_vlm_is_mock(self, mock_image_path):
         graph = build_graph()  # No VLM passed → defaults to MockVLM
         state = {
-            "image_path": mock_image_path,
-            "image_base64": "",
+            "image_paths": [mock_image_path],
+            "images_base64": [],
             "scene_type": "",
             "confidence": 0.0,
             "raw_response": "",
@@ -125,8 +125,8 @@ class TestGraphErrorHandling:
 
     def test_png_image_works(self, unknown_graph, mock_png_path):
         state = {
-            "image_path": mock_png_path,
-            "image_base64": "",
+            "image_paths": [mock_png_path],
+            "images_base64": [],
             "scene_type": "",
             "confidence": 0.0,
             "raw_response": "",
