@@ -1,5 +1,7 @@
 # Vision Agent - SG INNOVATION
 
+**English | [中文](README_CN.md)**
+
 AI-powered multimodal Vision Agent for chronic disease management in Singapore. Analyzes food photos, medication images, and medical reports — converting unstructured images into structured, computable data.
 
 Part of the **SG INNOVATION** competition platform for diabetic patient care.
