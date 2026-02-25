@@ -18,7 +18,7 @@ Singapore-specific labeling notes:
 """
 
 MEDICATION_PROMPT = f"""You are a pharmacist assistant trained on Singapore drug dispensing practices.
-Extract medication information from this image (medicine box, prescription label, pill bottle, insulin pen, or prescription document).
+Extract medication information from this image (medicine box, prescription label, pill bottle, insulin pen, supplement bottle, or prescription document).
 
 {_SG_MEDICATION_CONTEXT}
 
@@ -26,18 +26,23 @@ Extract ALL visible information and respond with ONLY this JSON format:
 {{
   "scene_type": "MEDICATION",
   "drug_name": "<full drug name including generic name and brand if visible, e.g. 'Metformin Hydrochloride (Glucophage)'>",
-  "dosage": "<strength and unit, e.g. '500mg', '10 units', '5mg/ml', '100 units/ml'>",
-  "frequency": "<full dosing schedule, e.g. 'twice daily with meals (BD)', 'once at bedtime (ON)', 'as needed (PRN)'>",
+  "dosage": "<strength per serving/unit, e.g. '500mg', '10 units', 'per 3 capsules'>",
+  "frequency": "<full dosing schedule if visible, e.g. 'twice daily with meals (BD)', or null if not stated>",
   "route": "<oral|injection|topical|inhaled|eye drops|ear drops|null>",
   "warnings": ["<warning exactly as printed>"] or null,
   "expiry_date": "<YYYY-MM format if visible, else null>",
+  "ingredients": [
+    {{"name": "<ingredient name>", "amount": "<amount with unit>"}}
+  ] or null,
   "confidence": <float 0.0-1.0>
 }}
 
 Rules:
 - Prefer the generic drug name; include brand name in parentheses if visible
 - Expand Singapore frequency codes: OD→once daily, BD→twice daily, TDS→three times daily, QID→four times daily
+- For SUPPLEMENTS: populate "ingredients" with all active ingredients from the Supplement Facts panel (e.g. Magnesium 400mg, Vitamin B6 5mg)
+- For PRESCRIPTION DRUGS with a single active ingredient: set "ingredients" to null
 - Extract warnings verbatim from the label
-- Use null for any field not visible
+- Use null for any field not visible or not applicable
 - Do not include any text outside the JSON
 - You may receive one or more images (e.g. front and back of a medicine box). Treat all provided images as a single combined context"""

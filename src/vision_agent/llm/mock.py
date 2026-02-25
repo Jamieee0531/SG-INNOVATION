@@ -201,7 +201,24 @@ _MEDICATION_SCENARIOS = [
         "route": "oral",
         "warnings": ["Report muscle pain or weakness immediately", "Avoid grapefruit juice"],
         "expiry_date": None,
+        "ingredients": None,
         "confidence": 0.89,
+    },
+    # Scenario 4: Supplement with multiple ingredients (BioFinest Magnesium Complex)
+    {
+        "scene_type": "MEDICATION",
+        "drug_name": "BioFinest Magnesium Complex",
+        "dosage": "per 3 capsules",
+        "frequency": None,
+        "route": "oral",
+        "warnings": None,
+        "expiry_date": None,
+        "ingredients": [
+            {"name": "Magnesium (as Magnesium Glycinate)", "amount": "400mg"},
+            {"name": "Vitamin B6 (as Pyridoxine HCl)", "amount": "5mg"},
+            {"name": "Zinc (as Zinc Gluconate)", "amount": "10mg"},
+        ],
+        "confidence": 0.86,
     },
 ]
 
@@ -359,6 +376,14 @@ class MockVLM(BaseVLM):
     def medication_scenarios(cls) -> list[str]:
         """Return all medication scenario names for parametrized testing."""
         return [s["drug_name"] for s in _MEDICATION_SCENARIOS]
+
+    @classmethod
+    def supplement_scenario_index(cls) -> int:
+        """Return the index of the supplement (multi-ingredient) scenario."""
+        for i, s in enumerate(_MEDICATION_SCENARIOS):
+            if s.get("ingredients"):
+                return i
+        return -1
 
     @classmethod
     def scenario_count(cls, scene: str) -> int:

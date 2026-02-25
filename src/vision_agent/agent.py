@@ -65,7 +65,6 @@ class AnalysisResult:
     confidence: float
     structured_output: Optional[AnalysisOutput]
     raw_response: str
-    advice: str
     error: Optional[str]
     image_paths: list[str]
 
@@ -124,14 +123,12 @@ class VisionAgent:
     def __init__(
         self,
         vlm: Optional[BaseVLM] = None,
-        text_llm: Optional[BaseVLM] = None,
         max_retries: int = 3,
         retry_delay_s: float = 1.0,
     ) -> None:
         """
         Args:
             vlm: Vision VLM for image understanding (e.g. Gemini). Defaults to MockVLM.
-            text_llm: Text LLM for health advice (e.g. SeaLION). Optional.
             max_retries: Retry attempts for VLM failures.
             retry_delay_s: Initial delay between retries.
         """
@@ -141,14 +138,9 @@ class VisionAgent:
         else:
             logger.info("VisionAgent initialized with vision=%s", vlm.model_name)
 
-        if text_llm is not None:
-            logger.info("Health advisor enabled with text_llm=%s", text_llm.model_name)
-
         self._vlm = vlm
-        self._text_llm = text_llm
         self._graph = build_graph(
             vlm=vlm,
-            text_llm=text_llm,
             max_retries=max_retries,
             retry_delay_s=retry_delay_s,
         )
@@ -177,7 +169,6 @@ class VisionAgent:
             "confidence": 0.0,
             "raw_response": "",
             "structured_output": {},
-            "advice": "",
             "error": None,
         }
 
@@ -197,7 +188,6 @@ class VisionAgent:
                 confidence=0.0,
                 structured_output=None,
                 raw_response=state.get("raw_response", ""),
-                advice="",
                 error=raw_output.get("error", "Unknown error"),
                 image_paths=image_paths,
             )
@@ -217,7 +207,6 @@ class VisionAgent:
             confidence=state.get("confidence", raw_output.get("confidence", 0.0)),
             structured_output=typed_output,
             raw_response=state.get("raw_response", ""),
-            advice=state.get("advice", ""),
             error=error,
             image_paths=image_paths,
         )

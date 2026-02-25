@@ -1,12 +1,33 @@
 # CLAUDE.md - Multimodal Vision Agent
 
+## ⚠️ 当前分支说明（practice branch）
+
+**这个分支（`practice`）不是用来开发功能的。**
+Jamie 在这里练习从网上学到的 AI coding 技巧和实验性工作流。
+代码改动随时可能发生，目的是练手，不代表正式功能方向。
+主项目代码在 `master` 分支。
+
+---
+
 ## Project Overview
 
 **项目**: SG INNOVATION 比赛 - AI 慢病管理与社区平台
 **模块**: 多模态 Vision Agent（图片输入与处理）
 **框架**: LangGraph + Python
-**VLM**: SEA-LION (AI Singapore)，通过 API 调用
+**VLM**: Gemini 2.5 Flash（当前）；后续计划集成 FoodAI API 替换/优化食物场景识别
 **核心目标**: 将非结构化的图片转化为可计算的结构化数据
+
+## 产品定位（2026-02-25 更新）
+
+面向新加坡慢病患者（如 2型糖尿病）的 AI 管理平台，Vision Agent 是其多模态 chatbot 的**图片处理模块**，不是独立产品。
+
+**做什么**: 图片识别 → 提取关键信息 → 输出结构化 JSON，供主 LLM 使用
+
+**不做什么**:
+- 不生成文字建议（那是主 LLM / chatbot 的职责）
+- 不处理数据库存储（那是 chatbot 模块的职责）
+
+> 路线图与技术决策见 `findings.md`，执行进度见 `task_plan.md`
 
 ### 业务场景
 

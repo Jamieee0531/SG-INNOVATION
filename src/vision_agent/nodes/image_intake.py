@@ -44,8 +44,13 @@ def _validate_and_encode(image_path: str) -> tuple[str | None, str | None]:
 def image_intake(state: VisionAgentState) -> dict:
     """Validate image file(s) and encode to base64.
 
+    Supports partial success: if some images fail validation, they are skipped
+    and logged in skipped_images. Processing continues as long as at least one
+    image succeeds. Only fails if ALL images are invalid or no paths provided.
+
     Returns:
-        State update with images_base64 set, or error if validation fails.
+        State update with images_base64 set (and skipped_images if any were skipped),
+        or error if all images failed validation.
     """
     image_paths: list[str] = state.get("image_paths", [])
 
@@ -56,10 +61,20 @@ def image_intake(state: VisionAgentState) -> dict:
         return {"error": f"Too many images ({len(image_paths)}). Max: {MAX_IMAGES}."}
 
     images_base64: list[str] = []
-    for img_path in image_paths:
+    skipped_images: list[dict] = []
+
+    for idx, img_path in enumerate(image_paths):
         encoded, err = _validate_and_encode(img_path)
         if err is not None:
-            return {"error": err}
-        images_base64.append(encoded)
+            skipped_images.append({"index": idx, "path": img_path, "reason": err})
+        else:
+            images_base64.append(encoded)
 
-    return {"images_base64": images_base64, "error": None}
+    if not images_base64:
+        reasons = "; ".join(s["reason"] for s in skipped_images)
+        return {"error": f"All images failed validation: {reasons}"}
+
+    result: dict = {"images_base64": images_base64, "error": None}
+    if skipped_images:
+        result["skipped_images"] = skipped_images
+    return result

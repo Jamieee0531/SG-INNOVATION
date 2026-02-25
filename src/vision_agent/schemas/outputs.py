@@ -41,14 +41,20 @@ class FoodOutput(BaseModel):
 
 # ─── Medication ───────────────────────────────────────────────────────────────
 
+class Ingredient(BaseModel):
+    name: str    # e.g. "Magnesium (as Magnesium Glycinate)"
+    amount: str  # e.g. "400mg", "5mcg"
+
+
 class MedicationOutput(BaseModel):
     scene_type: SceneType = SceneType.MEDICATION
     drug_name: str
     dosage: str
-    frequency: Optional[str] = None    # may be absent on supplement labels
-    route: Optional[str] = None        # oral / injection / topical
+    frequency: Optional[str] = None       # may be absent on supplement labels
+    route: Optional[str] = None           # oral / injection / topical
     warnings: Optional[List[str]] = None
     expiry_date: Optional[str] = None
+    ingredients: Optional[List[Ingredient]] = None  # supplement multi-ingredient list
     confidence: float = Field(ge=0.0, le=1.0)
 
 

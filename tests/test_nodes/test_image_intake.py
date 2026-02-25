@@ -131,11 +131,48 @@ class TestImageIntakeMulti:
             for p in paths:
                 os.unlink(p)
 
-    def test_one_bad_image_fails_all(self):
+    def test_one_bad_image_skipped_partial_success(self):
+        """One invalid image is skipped; valid images still processed."""
         good = _make_test_image(".jpg")
         try:
             result = image_intake(_state([good, "/nonexistent.jpg"]))
-            assert result["error"] is not None
-            assert "not found" in result["error"]
+            assert result["error"] is None
+            assert len(result["images_base64"]) == 1
+            assert "skipped_images" in result
+            assert len(result["skipped_images"]) == 1
+            assert result["skipped_images"][0]["index"] == 1
+            assert "not found" in result["skipped_images"][0]["reason"]
         finally:
             os.unlink(good)
+
+    def test_all_bad_images_returns_error(self):
+        """All images failing validation should return an error."""
+        result = image_intake(_state(["/nonexistent1.jpg", "/nonexistent2.jpg"]))
+        assert result["error"] is not None
+        assert "All images failed" in result["error"]
+
+    def test_no_skipped_images_key_when_all_valid(self):
+        """skipped_images key should not appear when all images are valid."""
+        path = _make_test_image(".jpg")
+        try:
+            result = image_intake(_state([path]))
+            assert "skipped_images" not in result
+        finally:
+            os.unlink(path)
+
+    def test_skipped_images_records_index_and_reason(self):
+        """skipped_images entries must include index, path, and reason."""
+        good1 = _make_test_image(".jpg")
+        good2 = _make_test_image(".jpg")
+        try:
+            result = image_intake(_state([good1, "/bad.gif", good2]))
+            assert result["error"] is None
+            assert len(result["images_base64"]) == 2
+            skipped = result["skipped_images"]
+            assert len(skipped) == 1
+            assert skipped[0]["index"] == 1
+            assert skipped[0]["path"] == "/bad.gif"
+            assert "reason" in skipped[0]
+        finally:
+            os.unlink(good1)
+            os.unlink(good2)

@@ -50,6 +50,7 @@ def test_food_calories_consistency(mock_image_path, scenario_index):
     (1, "Insulin Glargine (Lantus)"),
     (2, "Amlodipine Besylate (Norvasc)"),
     (3, "Rosuvastatin Calcium (Crestor)"),
+    (4, "BioFinest Magnesium Complex"),
 ])
 def test_medication_scenario_valid_schema(mock_image_path, scenario_index, expected_drug):
     agent = VisionAgent(vlm=MockVLM(forced_scene="MEDICATION", scenario_index=scenario_index))
@@ -61,13 +62,26 @@ def test_medication_scenario_valid_schema(mock_image_path, scenario_index, expec
 
 
 @pytest.mark.parametrize("scenario_index", range(len(_MEDICATION_SCENARIOS)))
-def test_medication_has_dosage_and_frequency(mock_image_path, scenario_index):
+def test_medication_has_dosage(mock_image_path, scenario_index):
+    """All medication scenarios must have a dosage. Frequency is optional (supplements may omit it)."""
     agent = VisionAgent(vlm=MockVLM(forced_scene="MEDICATION", scenario_index=scenario_index))
     result = agent.analyze(mock_image_path)
     med = result.as_medication
     assert med is not None
     assert len(med.dosage) > 0
-    assert len(med.frequency) > 0
+
+
+def test_supplement_scenario_has_ingredients(mock_image_path):
+    """Supplement scenario (index 4) must have multi-ingredient list and no frequency."""
+    supplement_idx = MockVLM.supplement_scenario_index()
+    assert supplement_idx >= 0, "No supplement scenario found in mock data"
+    agent = VisionAgent(vlm=MockVLM(forced_scene="MEDICATION", scenario_index=supplement_idx))
+    result = agent.analyze(mock_image_path)
+    med = result.as_medication
+    assert med is not None
+    assert med.ingredients is not None
+    assert len(med.ingredients) > 1
+    assert med.frequency is None
 
 
 # ─── Parametrized report scenarios ───────────────────────────────────────────

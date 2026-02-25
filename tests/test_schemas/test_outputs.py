@@ -6,6 +6,7 @@ from pydantic import ValidationError
 from src.vision_agent.schemas.outputs import (
     FoodItem,
     FoodOutput,
+    Ingredient,
     MedicationOutput,
     NutritionInfo,
     ReportIndicator,
@@ -99,6 +100,46 @@ class TestMedicationOutput:
         assert output.route is None
         assert output.warnings is None
         assert output.expiry_date is None
+        assert output.ingredients is None
+
+    def test_supplement_with_ingredients(self):
+        data = {
+            "scene_type": "MEDICATION",
+            "drug_name": "BioFinest Magnesium Complex",
+            "dosage": "per 3 capsules",
+            "frequency": None,
+            "route": "oral",
+            "confidence": 0.86,
+            "ingredients": [
+                {"name": "Magnesium (as Magnesium Glycinate)", "amount": "400mg"},
+                {"name": "Vitamin B6 (as Pyridoxine HCl)", "amount": "5mg"},
+                {"name": "Zinc (as Zinc Gluconate)", "amount": "10mg"},
+            ],
+        }
+        output = MedicationOutput(**data)
+        assert output.ingredients is not None
+        assert len(output.ingredients) == 3
+        assert output.ingredients[0].name == "Magnesium (as Magnesium Glycinate)"
+        assert output.ingredients[0].amount == "400mg"
+        assert output.frequency is None
+
+    def test_ingredient_model(self):
+        ingredient = Ingredient(name="Vitamin C", amount="500mg")
+        assert ingredient.name == "Vitamin C"
+        assert ingredient.amount == "500mg"
+
+    def test_prescription_drug_ingredients_none(self):
+        data = {
+            "scene_type": "MEDICATION",
+            "drug_name": "Metformin Hydrochloride",
+            "dosage": "500mg",
+            "frequency": "twice daily (BD)",
+            "route": "oral",
+            "confidence": 0.9,
+            "ingredients": None,
+        }
+        output = MedicationOutput(**data)
+        assert output.ingredients is None
 
 
 class TestReportOutput:

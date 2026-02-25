@@ -45,7 +45,6 @@ def base_state(mock_image_path: str) -> dict:
         "confidence": 0.0,
         "raw_response": "",
         "structured_output": {},
-        "advice": "",
         "error": None,
     }
 
