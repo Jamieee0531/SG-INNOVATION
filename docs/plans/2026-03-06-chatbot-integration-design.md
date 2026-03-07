@@ -156,3 +156,42 @@ Response: "我理解你的感受，控制饮食确实不容易..."
 - Confidence-based confirm/skip/ask
 - Emotion detection + agent switch
 - Downstream trigger (log)
+
+---
+
+## Section 4: Multi-Intent & Task Trigger Design（2026-03-07 补充）
+
+### 系统整体架构（下游关系）
+
+```
+用户
+  → Chatbot（Health-Companion）— 本 repo
+       → 输出 task_trigger → Task Agent（Chayi）
+       → 输出 alert_trigger → Alert Agent（Julia）
+```
+
+Chatbot 只负责检测"事件发生"并输出信号，具体任务逻辑由下游模块决定。
+
+### 多意图处理机制（Bailey 设计）
+
+- `triage` 返回 `all_intents: list`，可包含多个意图
+- **路由只选主意图（`intent`）走一个 Agent**
+- 其他意图通过 Agent 内部 prompt 融合（不路由到多个 Agent）
+- 例如：`["medical", "emotional"]` → 路由到 Expert，Expert prompt 里加情绪安抚前缀
+
+### 食物照片 → 饮食打卡设计意图
+
+- 用户上传食物照片 = 同时完成两件事：
+  1. 给 Expert Agent 提供饮食信息（medical 路径）
+  2. 自动触发 `task_trigger`（通知 Task Agent：今日饮食打卡完成）
+- 药物照片不触发 task_trigger
+- **待确认（Bailey）**：triage 对食物图片是否会返回 `["medical", "task"]`
+- `task_trigger` 格式暂时保持现有结构，待和 Chayi 对齐后调整
+
+### task_trigger 当前格式
+
+```python
+{"user_id": "...", "timestamp": "...", "request": "...", "type": "task_request"}
+```
+
+未来可能需要加 `event_type` 字段（如 `"food_uploaded"`），待和 Chayi 约定。
