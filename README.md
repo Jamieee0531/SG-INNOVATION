@@ -1,12 +1,56 @@
-# Vision Agent - SG INNOVATION
+# SG INNOVATION - AI Health Platform
 
 **English | [中文](README_CN.md)**
 
-AI-powered multimodal Vision Agent for chronic disease management in Singapore. Analyzes food photos, medication images, and medical reports — converting unstructured images into structured, computable data.
+AI-powered health management platform for diabetic patients in Singapore. Built for the **SG INNOVATION** competition.
 
-Part of the **SG INNOVATION** competition platform for diabetic patient care.
+This repo contains two integrated modules:
 
-## Architecture
+| Module | Description |
+|--------|-------------|
+| **Vision Agent** (`src/vision_agent/`) | Analyzes food photos, medication images, and medical reports — converting images into structured JSON |
+| **Health Companion Chatbot** (`chatbot/`) | Multi-turn conversational agent with intent routing, emotion awareness, and Vision Agent integration |
+
+---
+
+## Chatbot Quick Start
+
+```bash
+cd chatbot
+pip install -r requirements.txt
+cp ../.env .env   # uses same API keys as Vision Agent
+python main.py
+
+# CLI commands:
+# 你好                          → text input
+# image /path/to/food.jpg       → image input (triggers Vision Agent)
+# image /path/photo.jpg 这是午饭  → image + text
+# voice /path/to/audio.mp3      → voice input
+# reset                         → clear conversation history
+# quit                          → exit
+```
+
+### Chatbot Architecture
+
+```
+User Input (text / image / voice)
+    |
+input_node     ← detects images, calls Vision Agent, generates synthetic text
+    |
+triage_node    ← keyword pre-classification + LLM fallback (intent + emotion)
+    |
+policy_node    ← rule table: (intent, emotion) → strategy instruction
+    |
+    +-- Expert Agent    ← confidence-driven multi-turn: glucose/diet/medication
+    +-- Companion Agent ← emotional support + crisis detection
+    +-- Chitchat Agent  ← casual conversation
+    +-- Task Forward    ← triggers Task Agent (Chayi)
+    +-- Alert Forward   ← triggers Alert Agent (Julia)
+```
+
+---
+
+## Vision Agent Architecture
 
 ### LangGraph Pipeline
 
@@ -101,10 +145,20 @@ make coverage          # Tests + coverage report (99%+)
 SG_INNOVATION/
 ├── README.md
 ├── CLAUDE.md                        # AI dev guidelines
-├── plan.md                          # Project plan & roadmap
-├── Makefile                         # make test / make run-gemini / etc.
+├── PRD-visionAgent.md               # Vision Agent product spec
+├── PRD-chatbot.md                   # Chatbot product spec
+├── Makefile
 ├── requirements.txt
-├── .env.example                     # Environment template
+├── .env.example
+│
+├── chatbot/                         # Health Companion Chatbot
+│   ├── main.py                      # CLI entry point
+│   ├── agents/                      # triage, policy, expert, companion, chitchat, forward
+│   ├── graph/                       # LangGraph graph definition
+│   ├── state/                       # ChatState (TypedDict)
+│   ├── utils/                       # llm_factory, memory, meralion
+│   ├── config/                      # settings
+│   └── tests/                       # 29 tests
 │
 ├── src/vision_agent/
 │   ├── agent.py                     # Public API: VisionAgent.analyze()
