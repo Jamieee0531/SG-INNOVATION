@@ -167,23 +167,23 @@ All chat endpoints accept `FormData` with fields: `user_id`, `session_id`, `text
 
 ### Prerequisites
 
-- Python 3.10+
+- Python 3.11+
 - Node.js 18+
 - Redis (for Alert Agent)
-- PostgreSQL database
+- PostgreSQL database (cloud-hosted; connection info in `.env`)
 
 ### 1. Clone and Setup
 
 ```bash
 git clone https://github.com/Jamieee0531/TheGlucoGardener.git
-cd SG_INNOVATION
+cd TheGlucoGardener
 
 # Create virtual environment
 python3 -m venv .venv
 source .venv/bin/activate
 
 # Install Python dependencies
-.venv/bin/python3 -m pip install -r requirements.txt
+pip install -r requirements.txt
 
 # Install frontend dependencies
 cd frontend && npm install && cd ..
@@ -193,35 +193,73 @@ cd frontend && npm install && cd ..
 
 ```bash
 cp .env.example .env
-# Edit .env with your API keys (see Environment Variables below)
+# Fill in PG_HOST / PG_USER / PG_PASSWORD / PG_DB and API keys
+# Set DEMO_MODE=true for local demo runs
 ```
 
-### 3. Start Services
+### 3. Initialise Database Schema (first time only)
 
 ```bash
-# Terminal 1: Chatbot API
-source .venv/bin/activate
-uvicorn chatbot.api.main:api --reload --port 8080
-
-# Terminal 2: Frontend
-cd frontend && npm run dev
-# Open http://localhost:3000
-
-# Terminal 3: Gateway (Alert Agent)
-source .venv/bin/activate
-uvicorn gateway.app:app --reload --port 8000
-
-# Terminal 4: Task Agent
-source .venv/bin/activate
-uvicorn task_agent.main:app --reload --port 8001
-
-# Terminal 5: Redis
-redis-server
-
-# Terminal 6: Celery Worker (Alert Agent)
-source .venv/bin/activate
-celery -A pipeline.celery_app worker --loglevel=info
+psql "postgresql://$PG_USER:$PG_PASSWORD@$PG_HOST:$PG_PORT/$PG_DB" \
+  -f alert_db/init.sql
 ```
+
+> Task Agent tables are created automatically on first startup — no manual step needed.
+
+### 4. Seed Demo Data
+
+The project ships with two demo personas. Run the seed script(s) for the use cases you want to demonstrate. **Re-run on the day of the demo** so that "today's" food/CGM records carry the correct date.
+
+#### user_001 — Mdm Chen (Chatbot & Vision Agent demo)
+
+Covers three chatbot moments:
+- **Moment 1a** Emotional support — daughter didn't call, lives alone, feels lonely
+- **Moment 1b** Food recognition — photographs Wonton Noodles (云吞面) at dinner
+- **Moment 1c** Symptom reasoning — post-meal dizziness (orthostatic hypotension, not hypoglycaemia)
+
+```bash
+source .venv/bin/activate
+python -m chatbot.db.seed_user_001
+```
+
+What it writes: 7-day CGM + HR history, exercise log, emotion summaries, today's dinner food log, emergency contact (daughter in Australia).
+
+#### user_002 — Marcus (Alert Agent & Task Agent demo)
+
+Covers all 7 alert scenarios in `demo/scenarios/` — most importantly **Scenario A** (soft pre-exercise alert):
+
+- 13:31 Marcus arrives at ActiveSG Gym, glucose = 4.9 mmol/L
+- Agent calculates: mean HIIT glucose drop over past 3 sessions = 1.03 → projected post-exercise glucose = 3.87 (below 3.9 danger threshold)
+- Total intake today only 670 kcal → triggers Soft Alert recommending carb top-up
+
+```bash
+source .venv/bin/activate
+python demo/seed_user_002.py
+```
+
+What it writes: 21-day CGM + HR history with crafted HIIT drop curves, exercise log, food log (today: Kaya Toast 06:30 + Chicken Sandwich 11:30), weekly patterns, known places, emergency contact, reward points, pipeline daily/weekly stats.
+
+> `user_001` and `user_002` are friends in the Garden leaderboard. `user_003` is a placeholder friend — no seed needed for the current demo.
+
+### 5. Start Services
+
+Open separate terminal tabs for each service. Activate the virtual environment in every Python tab first:
+
+```bash
+source .venv/bin/activate
+```
+
+| Tab | Command | Verify |
+|-----|---------|--------|
+| **Redis** | `redis-server` | `redis-cli ping` → `PONG` |
+| **Gateway API** | `uvicorn gateway.main:app --reload --port 8000` | `localhost:8000/health` |
+| **Task Agent** | `uvicorn task_agent.main:app --reload --port 8001` | `localhost:8001/health` |
+| **Chatbot API** | `uvicorn chatbot.api.main:api --reload --port 8080` | `localhost:8080/docs` |
+| **Alert Agent** | `celery -A alert_agent.main worker --loglevel=info` | logs show `ready` |
+| **Frontend** | `cd frontend && npm run dev` | `localhost:3000` |
+| **MCP Server** *(optional)* | `python -m chatbot.mcp.server` | `localhost:8002/docs` |
+
+> For a full walk-through of each service and demo scenario steps, see **[docs/RUN_GUIDE.md](docs/RUN_GUIDE.md)**.
 
 ### Deployment
 
