@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { webmToWav } from "../lib/audioUtils";
 import { useTranslation } from "../lib/i18n";
 
@@ -9,14 +9,22 @@ export default function InputBar({
   onSendAudio,
   onOpenSheet,
   disabled,
+  initialText = "",
 }) {
   const { t } = useTranslation();
-  const [text, setText] = useState("");
-  const [showInput, setShowInput] = useState(false);
+  const [text, setText] = useState(initialText);
+  const [showInput, setShowInput] = useState(initialText !== "");
   const [isRecording, setIsRecording] = useState(false);
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
   const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (initialText) {
+      setText(initialText);
+      setShowInput(true);
+    }
+  }, [initialText]);
 
   const handleSendText = () => {
     const trimmed = text.trim();
