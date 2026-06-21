@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import TopBar from "../../components/TopBar";
 import MessageList from "../../components/MessageList";
 import InputBar from "../../components/InputBar";
@@ -10,9 +11,10 @@ import { sendMessageStream } from "../../lib/api";
 import { useAuth } from "../../lib/useAuth";
 import { useTranslation } from "../../lib/i18n";
 
-export default function ChatPage() {
+function ChatPageInner() {
   const { user, loading } = useAuth();
   const { t } = useTranslation();
+  const prefill = useSearchParams().get("prefill") ?? "";
 
   const [messages, setMessages] = useState([]);
   const [sessionId, setSessionId] = useState(null);
@@ -145,6 +147,7 @@ export default function ChatPage() {
         onSendAudio={handleSendAudio}
         onOpenSheet={() => setSheetOpen(true)}
         disabled={isLoading}
+        initialText={prefill}
       />
 
       <ActionSheet
@@ -170,5 +173,13 @@ export default function ChatPage() {
         onChange={handleFileChange}
       />
     </div>
+  );
+}
+
+export default function ChatPage() {
+  return (
+    <Suspense fallback={null}>
+      <ChatPageInner />
+    </Suspense>
   );
 }
