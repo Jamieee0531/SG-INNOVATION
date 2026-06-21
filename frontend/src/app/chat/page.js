@@ -9,6 +9,8 @@ import ImagePreview from "../../components/ImagePreview";
 import { sendMessageStream } from "../../lib/api";
 import { useAuth } from "../../lib/useAuth";
 import { useTranslation } from "../../lib/i18n";
+import ModeToggle from "../../components/ModeToggle";
+import { runAnalysis } from "../../lib/runAnalysis.mjs";
 
 export default function ChatPage() {
   const { user, loading } = useAuth();
@@ -17,6 +19,7 @@ export default function ChatPage() {
   const [messages, setMessages] = useState([]);
   const [sessionId, setSessionId] = useState(null);
   const [agentType, setAgentType] = useState("companion");
+  const [mode, setMode] = useState("chat");
   const [isLoading, setIsLoading] = useState(false);
   const [pendingImage, setPendingImage] = useState(null);
   const [pendingImageFile, setPendingImageFile] = useState(null);
@@ -98,7 +101,31 @@ export default function ChatPage() {
     });
   };
 
+  const handleAnalysisQuestion = (text) => {
+    const userMsgId = nextId();
+    setMessages((prev) => [...prev, { id: userMsgId, role: "user", content: text }]);
+
+    const botMsgId = nextId();
+    setMessages((prev) => [...prev, { id: botMsgId, role: "assistant", content: "" }]);
+    setIsLoading(true);
+
+    // Small delay so the typing dots show briefly, then swap in the chart.
+    setTimeout(() => {
+      const { chart, insight } = runAnalysis(text);
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === botMsgId ? { ...m, type: "chart", chart, content: insight } : m
+        )
+      );
+      setIsLoading(false);
+    }, 600);
+  };
+
   const handleSendText = (text) => {
+    if (mode === "analysis") {
+      handleAnalysisQuestion(text);
+      return;
+    }
     handleSend({
       text,
       image: pendingImageFile,
@@ -128,7 +155,7 @@ export default function ChatPage() {
 
   return (
     <div className="flex flex-col h-full bg-cream">
-      <TopBar title={t("nav_chat")} agentType={agentType} />
+      <TopBar title={t("nav_chat")} agentType={mode === "analysis" ? "analysis" : agentType} />
 
       <MessageList messages={messages} isLoading={isLoading} />
 
@@ -139,6 +166,8 @@ export default function ChatPage() {
           setPendingImageFile(null);
         }}
       />
+
+      <ModeToggle mode={mode} onChange={setMode} />
 
       <InputBar
         onSendText={handleSendText}

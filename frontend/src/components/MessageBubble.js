@@ -1,6 +1,15 @@
 import ReactMarkdown from "react-markdown";
+import AnalysisChart from "./AnalysisChart";
 
-export default function MessageBubble({ role, content, image }) {
+export default function MessageBubble({ role, content, image, type, chart }) {
+  if (type === "chart") {
+    return (
+      <div className="flex justify-start mb-3 px-4">
+        <AnalysisChart chart={chart} insight={content} />
+      </div>
+    );
+  }
+
   const isUser = role === "user";
 
   return (
