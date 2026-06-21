@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import TopBar from "../../components/TopBar";
 import SugarChart from "../../components/SugarChart";
@@ -11,12 +12,13 @@ export default function SoftAlertPage() {
   const { user, loading } = useAuth();
   const { t } = useTranslation();
 
+  const router = useRouter();
   const [showAlert, setShowAlert] = useState(true);
-  const [showReasoning, setShowReasoning] = useState(false);
-  const [feedbackMode, setFeedbackMode] = useState(false);
-  const [feedbackText, setFeedbackText] = useState("");
-  const [feedbackThanks, setFeedbackThanks] = useState(false);
   const [showPush, setShowPush] = useState(true);
+  // inquiry state machine: "initial" | "inquiryQ1" | "inquiryQ2" | "result"
+  const [inquiryState, setInquiryState] = useState("initial");
+  const [q1Answer, setQ1Answer] = useState(null); // "going" | "delayed" | "cancelled"
+  const [q2Answer, setQ2Answer] = useState(null); // "just_ate" | "few_hours" | "barely_eaten"
 
   // Auto-dismiss push after 4s
   useEffect(() => {
@@ -26,16 +28,36 @@ export default function SoftAlertPage() {
 
   const dismissAlert = useCallback(() => {
     setShowAlert(false);
-    setShowReasoning(false);
-    setFeedbackMode(false);
-    setFeedbackText("");
-    setFeedbackThanks(false);
   }, []);
 
-  const handleFeedbackSubmit = useCallback(() => {
-    setFeedbackThanks(true);
-    setTimeout(() => dismissAlert(), 1500);
-  }, [dismissAlert]);
+  const handleChatRedirect = useCallback((prefillText) => {
+    const encoded = encodeURIComponent(prefillText);
+    router.push(`/chat?prefill=${encoded}`);
+    setShowAlert(false);
+  }, [router]);
+
+  const getResultKey = useCallback(() => {
+    if (q1Answer === "cancelled") return "b";
+    if (q1Answer === "going") {
+      if (q2Answer === "just_ate") return "a1";
+      if (q2Answer === "few_hours") return "a2";
+      if (q2Answer === "barely_eaten") return "a3";
+    }
+    if (q1Answer === "delayed") {
+      if (q2Answer === "just_ate") return "c1";
+      return "c2"; // few_hours or barely_eaten
+    }
+    return "a2"; // fallback
+  }, [q1Answer, q2Answer]);
+
+  const PREFILL = {
+    a1: "I got a glucose alert before HIIT. I just ate, but want to know if I still need a snack before high-intensity exercise.",
+    a2: "I got a glucose alert. I'm doing HIIT at 2pm and ate about 2–3 hours ago. I was told to have cream crackers — what else should I know?",
+    a3: "I got a glucose alert and I've barely eaten today. I'm planning HIIT soon — how risky is this and what should I do?",
+    b: "I just cancelled my workout after a glucose alert. Is there anything I should watch out for the rest of the day?",
+    c1: "I delayed my gym session after a glucose alert. I ate recently — when should I check my blood sugar again?",
+    c2: "I got a glucose alert and I'm delaying my workout. I haven't eaten much today — what should I eat now?",
+  };
 
   if (loading || !user) return null;
 
@@ -166,69 +188,112 @@ export default function SoftAlertPage() {
                 {t("soft_alert_msg")}
               </p>
 
-              {/* State machine: buttons → reasoning → feedback → thanks */}
-              {feedbackThanks ? (
-                <p className="text-center mt-4 text-sm font-semibold text-green-600">
-                  {t("soft_alert_feedback_thanks")}
-                </p>
-              ) : feedbackMode ? (
-                /* Feedback textarea */
-                <div className="mt-4">
-                  <textarea
-                    className="w-full border border-gray-300 rounded-lg p-2 text-sm resize-none focus:outline-none focus:border-yellow-400"
-                    rows={3}
-                    placeholder={t("soft_alert_feedback_placeholder")}
-                    value={feedbackText}
-                    onChange={(e) => setFeedbackText(e.target.value)}
-                  />
+              {/* ── State machine ── */}
+              {inquiryState === "initial" && (
+                <div className="mt-5">
                   <button
-                    onClick={handleFeedbackSubmit}
-                    disabled={!feedbackText.trim()}
-                    className="mt-2 w-full py-2 text-sm font-medium text-white bg-yellow-500 rounded-full hover:bg-yellow-600 disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    {t("soft_alert_feedback_submit")}
-                  </button>
-                </div>
-              ) : showReasoning ? (
-                /* Reasoning summary + Good Enough / Give Feedback */
-                <div className="mt-4">
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                    <p className="text-xs text-gray-700 leading-relaxed">
-                      {t("soft_alert_demo_reasoning")}
-                    </p>
-                  </div>
-                  <div className="mt-3 space-y-2">
-                    <button
-                      onClick={dismissAlert}
-                      className="w-full py-2 text-sm font-bold text-white bg-yellow-500 rounded-full hover:bg-yellow-600"
-                    >
-                      {t("soft_alert_good_enough")}
-                    </button>
-                    <button
-                      onClick={() => setFeedbackMode(true)}
-                      className="w-full py-2 text-sm font-medium text-yellow-600 border border-yellow-400 rounded-full hover:bg-yellow-50"
-                    >
-                      {t("soft_alert_not_helpful")}
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                /* Initial buttons */
-                <div className="mt-5 space-y-2">
-                  <button
-                    onClick={dismissAlert}
+                    onClick={() => setInquiryState("inquiryQ1")}
                     className="w-full py-2 text-sm font-bold text-white bg-yellow-500 rounded-full hover:bg-yellow-600"
                   >
-                    {t("soft_alert_got_it")}
-                  </button>
-                  <button
-                    onClick={() => setShowReasoning(true)}
-                    className="w-full py-2 text-sm font-medium text-yellow-600 border border-yellow-400 rounded-full hover:bg-yellow-50"
-                  >
-                    {t("soft_alert_why")}
+                    {t("inquiry_start")}
                   </button>
                 </div>
               )}
+
+              {inquiryState === "inquiryQ1" && (
+                <div className="mt-4">
+                  <p className="text-sm font-semibold text-gray-700 text-center mb-3">
+                    {t("inquiry_q1")}
+                  </p>
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => { setQ1Answer("going"); setInquiryState("inquiryQ2"); }}
+                      className="w-full py-2 text-sm font-medium text-yellow-700 border border-yellow-400 rounded-full hover:bg-yellow-50"
+                    >
+                      {t("inquiry_q1_a")}
+                    </button>
+                    <button
+                      onClick={() => { setQ1Answer("delayed"); setInquiryState("inquiryQ2"); }}
+                      className="w-full py-2 text-sm font-medium text-yellow-700 border border-yellow-400 rounded-full hover:bg-yellow-50"
+                    >
+                      {t("inquiry_q1_b")}
+                    </button>
+                    <button
+                      onClick={() => { setQ1Answer("cancelled"); setQ2Answer(null); setInquiryState("result"); }}
+                      className="w-full py-2 text-sm font-medium text-gray-500 border border-gray-300 rounded-full hover:bg-gray-50"
+                    >
+                      {t("inquiry_q1_c")}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {inquiryState === "inquiryQ2" && (
+                <div className="mt-4">
+                  <p className="text-sm font-semibold text-gray-700 text-center mb-3">
+                    {t("inquiry_q2")}
+                  </p>
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => { setQ2Answer("just_ate"); setInquiryState("result"); }}
+                      className="w-full py-2 text-sm font-medium text-yellow-700 border border-yellow-400 rounded-full hover:bg-yellow-50"
+                    >
+                      {t("inquiry_q2_a")}
+                    </button>
+                    <button
+                      onClick={() => { setQ2Answer("few_hours"); setInquiryState("result"); }}
+                      className="w-full py-2 text-sm font-medium text-yellow-700 border border-yellow-400 rounded-full hover:bg-yellow-50"
+                    >
+                      {t("inquiry_q2_b")}
+                    </button>
+                    <button
+                      onClick={() => { setQ2Answer("barely_eaten"); setInquiryState("result"); }}
+                      className="w-full py-2 text-sm font-medium text-orange-600 border border-orange-400 rounded-full hover:bg-orange-50"
+                    >
+                      {t("inquiry_q2_c")}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {inquiryState === "result" && (() => {
+                const key = getResultKey();
+                const isA3 = key === "a3";
+                return (
+                  <div className="mt-4">
+                    <div className={`rounded-lg p-3 mb-3 ${isA3 ? "bg-orange-50 border border-orange-200" : "bg-yellow-50 border border-yellow-200"}`}>
+                      <p className={`text-sm font-bold mb-1 ${isA3 ? "text-orange-700" : "text-yellow-700"}`}>
+                        {t(`result_${key}_title`)}
+                      </p>
+                      <p className="text-xs text-gray-700 leading-relaxed">
+                        {t(`result_${key}_body`)}
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      {isA3 && (
+                        <button
+                          onClick={dismissAlert}
+                          className="w-full py-2 text-sm font-medium text-orange-600 border border-orange-400 rounded-full hover:bg-orange-50"
+                        >
+                          {t("inquiry_lighter_workout")}
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleChatRedirect(PREFILL[key])}
+                        className="w-full py-2 text-sm font-bold text-white bg-yellow-500 rounded-full hover:bg-yellow-600"
+                      >
+                        {t("inquiry_chat")}
+                      </button>
+                      <button
+                        onClick={dismissAlert}
+                        className="w-full py-2 text-sm font-medium text-gray-500 border border-gray-300 rounded-full hover:bg-gray-50"
+                      >
+                        {t("inquiry_dismiss")}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </>
