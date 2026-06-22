@@ -15,11 +15,17 @@ export default function GlucoseTrendChart({ data = [] }) {
     .map((d, i) => `${i === 0 ? "M" : "L"} ${xAt(i).toFixed(1)} ${yToPx(d.avg).toFixed(1)}`)
     .join(" ");
 
+  const hasRange = data.every((d) => typeof d.min === "number" && typeof d.max === "number");
+  const topPts = data.map((d, i) => `${xAt(i).toFixed(1)},${yToPx(d.max).toFixed(1)}`);
+  const botPts = data.map((d, i) => `${xAt(i).toFixed(1)},${yToPx(d.min).toFixed(1)}`).reverse();
+  const rangeArea = hasRange ? `M ${topPts.join(" L ")} L ${botPts.join(" L ")} Z` : null;
+
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto">
       {/* target range band 3.9–10 */}
       <rect x={padL} y={bandTop} width={W - padL - 10} height={bandBottom - bandTop}
             fill="#CEF7EA" opacity="0.6" />
+      {rangeArea && <path d={rangeArea} fill="#e8927c" opacity="0.15" />}
       <line x1={padL} y1={padT} x2={padL} y2={H - padB} stroke="#333" strokeWidth="1" />
       <line x1={padL} y1={H - padB} x2={W - 5} y2={H - padB} stroke="#333" strokeWidth="1" />
       <path d={linePath} fill="none" stroke="#e8927c" strokeWidth="1.8"

@@ -6,6 +6,27 @@ const KEYWORDS = {
   glucose: ["血糖", "糖", "glucose", "sugar", "tir", "范围"],
 };
 
+const PLANS = {
+  glucose: [
+    "读取近 7 天血糖记录",
+    "计算每日均值与波动范围 (min–max)",
+    "统计 TIR（在健康范围内的时间占比）",
+    "生成趋势图与结论",
+  ],
+  exercise: [
+    "读取近 7 天运动记录",
+    "汇总每日运动时长",
+    "对比每周 150 分钟目标",
+    "生成柱状图与结论",
+  ],
+  diet: [
+    "读取近 7 天饮食记录",
+    "计算每日热量摄入",
+    "找出热量偏高的日子",
+    "生成柱状图与结论",
+  ],
+};
+
 // Pick the dimension. Exercise/diet are checked before glucose so a question
 // like "运动后血糖" is treated as exercise; unknown questions default to glucose.
 export function classifyQuestion(question) {
@@ -24,6 +45,7 @@ export function runAnalysis(question) {
     const total = data.reduce((s, d) => s + d.minutes, 0);
     const activeDays = data.filter((d) => d.minutes > 0).length;
     return {
+      plan: { steps: PLANS.exercise },
       chart: { chartType: "exercise", data, meta: { unit: "min" } },
       insight: `本周运动 ${activeDays} 天、共 ${total} 分钟，${
         total >= 150 ? "已达到每周 150 分钟目标。" : "离每周 150 分钟目标还差一点。"
@@ -36,6 +58,7 @@ export function runAnalysis(question) {
     const avg = Math.round(data.reduce((s, d) => s + d.kcal, 0) / data.length);
     const peak = data.reduce((m, d) => (d.kcal > m.kcal ? d : m), data[0]);
     return {
+      plan: { steps: PLANS.diet },
       chart: { chartType: "diet", data, meta: { unit: "kcal" } },
       insight: `本周日均约 ${avg} 大卡，${peak.day}偏高（${peak.kcal} 大卡）。`,
     };
@@ -43,6 +66,7 @@ export function runAnalysis(question) {
 
   const { daily, tir } = ANALYSIS_MOCK.glucose;
   return {
+    plan: { steps: PLANS.glucose },
     chart: { chartType: "glucose", data: daily, meta: { tir } },
     insight: `过去 7 天 ${tir.inRange}% 时间血糖在健康范围内 (3.9–10)，整体${
       tir.inRange >= 70 ? "平稳" : "波动偏大"

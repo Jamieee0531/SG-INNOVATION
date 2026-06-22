@@ -105,20 +105,23 @@ export default function ChatPage() {
     const userMsgId = nextId();
     setMessages((prev) => [...prev, { id: userMsgId, role: "user", content: text }]);
 
-    const botMsgId = nextId();
-    setMessages((prev) => [...prev, { id: botMsgId, role: "assistant", content: "" }]);
+    const { plan, chart, insight } = runAnalysis(text);
+
+    // 1) Show the analysis plan first; PlanCard reveals steps one-by-one.
+    const planMsgId = nextId();
+    setMessages((prev) => [...prev, { id: planMsgId, role: "assistant", type: "plan", plan }]);
     setIsLoading(true);
 
-    // Small delay so the typing dots show briefly, then swap in the chart.
+    // 2) After the steps finish revealing, show the chart + numeric answer.
+    const revealMs = plan.steps.length * 450 + 600;
     setTimeout(() => {
-      const { chart, insight } = runAnalysis(text);
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === botMsgId ? { ...m, type: "chart", chart, content: insight } : m
-        )
-      );
+      const chartMsgId = nextId();
+      setMessages((prev) => [
+        ...prev,
+        { id: chartMsgId, role: "assistant", type: "chart", chart, content: insight },
+      ]);
       setIsLoading(false);
-    }, 600);
+    }, revealMs);
   };
 
   const handleSendText = (text) => {

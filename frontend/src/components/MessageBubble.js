@@ -1,7 +1,16 @@
 import ReactMarkdown from "react-markdown";
 import AnalysisChart from "./AnalysisChart";
+import PlanCard from "./PlanCard";
 
-export default function MessageBubble({ role, content, image, type, chart }) {
+export default function MessageBubble({ role, content, image, type, chart, plan }) {
+  if (type === "plan") {
+    return (
+      <div className="flex justify-start mb-3 px-4">
+        <PlanCard steps={plan?.steps || []} />
+      </div>
+    );
+  }
+
   if (type === "chart") {
     return (
       <div className="flex justify-start mb-3 px-4">

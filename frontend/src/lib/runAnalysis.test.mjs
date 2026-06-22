@@ -29,3 +29,15 @@ test("exercise analysis sums minutes", () => {
   assert.equal(r.chart.chartType, "exercise");
   assert.ok(r.chart.data.length === 7);
 });
+
+test("every dimension returns a non-empty plan", () => {
+  for (const q of ["血糖", "运动", "吃"]) {
+    const r = runAnalysis(q);
+    assert.ok(Array.isArray(r.plan.steps) && r.plan.steps.length > 0, `plan missing for ${q}`);
+  }
+});
+
+test("glucose daily mock carries min/max for the range band", () => {
+  const r = runAnalysis("血糖");
+  assert.ok(r.chart.data.every((d) => typeof d.min === "number" && typeof d.max === "number"));
+});

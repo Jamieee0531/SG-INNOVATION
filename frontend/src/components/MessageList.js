@@ -20,6 +20,7 @@ export default function MessageList({ messages, isLoading }) {
           image={msg.image}
           type={msg.type}
           chart={msg.chart}
+          plan={msg.plan}
         />
       ))}
 
