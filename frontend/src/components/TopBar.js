@@ -7,6 +7,7 @@ import { useTranslation } from "../lib/i18n";
 const AGENT_ICONS = {
   companion: "💞",
   expert: "🩺",
+  analysis: "📊",
 };
 
 const NAV_ITEMS = [

@@ -18,6 +18,9 @@ export default function MessageList({ messages, isLoading }) {
           role={msg.role}
           content={msg.content}
           image={msg.image}
+          type={msg.type}
+          chart={msg.chart}
+          plan={msg.plan}
         />
       ))}
 
